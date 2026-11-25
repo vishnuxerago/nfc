@@ -22,6 +22,7 @@
  * Gmail free quota is limited (about 100 emails/day for consumer Gmail).
  */
 
+var SCRIPT_VERSION = "2026-11-25-forgot-v2";
 var OTP_TTL_MS = 5 * 60 * 1000;
 var RATE_WINDOW_MS = 15 * 60 * 1000;
 var MAX_PER_MOBILE = 3;
@@ -45,7 +46,8 @@ function doPost(e) {
     else if (action === "forgotPassword") result = actionForgotPassword(data);
     else if (action === "resetPassword") result = actionResetPassword(data);
     else if (action === "changePassword") result = actionChangePassword(data);
-    else result = { ok: false, error: "Unknown action" };
+    else if (action === "health") result = actionHealth();
+    else result = { ok: false, error: "Unknown action", scriptVersion: SCRIPT_VERSION };
 
     return json_(result);
   } catch (err) {
@@ -58,6 +60,8 @@ function doGet() {
     var ss = getSpreadsheet_();
     return json_({
       ok: true,
+      scriptVersion: SCRIPT_VERSION,
+      supportsForgotPassword: true,
       message: "Email OTP API is live. Use POST with action sendOtp or verifyOtp.",
       spreadsheetName: ss.getName(),
       spreadsheetId: ss.getId(),
@@ -68,10 +72,22 @@ function doGet() {
   } catch (err) {
     return json_({
       ok: false,
+      scriptVersion: SCRIPT_VERSION,
+      supportsForgotPassword: true,
       message: "API loaded, but spreadsheet is not linked correctly.",
       error: String(err),
     });
   }
+}
+
+function actionHealth() {
+  return {
+    ok: true,
+    scriptVersion: SCRIPT_VERSION,
+    supportsForgotPassword: true,
+    adminEmailConfigured: !!String(props_().getProperty("ADMIN_EMAIL") || "").trim(),
+    adminPasswordConfigured: !!String(props_().getProperty("ADMIN_PASSWORD") || "").trim(),
+  };
 }
 
 /* ---------- customer actions ---------- */
@@ -219,10 +235,18 @@ function actionStatus(data) {
 
 function actionAdminLogin(data) {
   var expected = props_().getProperty("ADMIN_PASSWORD");
+  var adminEmail = String(props_().getProperty("ADMIN_EMAIL") || "").trim().toLowerCase();
+  var typedEmail = String(data.email || "").trim().toLowerCase();
+
   if (!expected) return { ok: false, error: "ADMIN_PASSWORD is not set in Script properties" };
+  if (!adminEmail) return { ok: false, error: "ADMIN_EMAIL is not set in Script properties" };
+  if (!typedEmail || typedEmail !== adminEmail) {
+    audit_("", "login_fail", "admin", {});
+    return { ok: false, error: "Invalid admin ID or password" };
+  }
   if (String(data.password || "") !== String(expected)) {
     audit_("", "login_fail", "admin", {});
-    return { ok: false, error: "Invalid password" };
+    return { ok: false, error: "Invalid admin ID or password" };
   }
   var token = randomId_() + randomId_();
   CacheService.getScriptCache().put("admin:" + token, "1", ADMIN_TOKEN_TTL_SEC);

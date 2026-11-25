@@ -50,18 +50,10 @@
       font-weight: 800;
     }
     .sub {
-      margin: 0 0 6px;
+      margin: 0 0 18px;
       text-align: center;
       color: var(--muted);
       font-size: 0.95rem;
-    }
-    .admin-id {
-      margin: 0 0 22px;
-      text-align: center;
-      color: var(--brand-dark);
-      font-size: 0.92rem;
-      font-weight: 600;
-      word-break: break-all;
     }
     label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; text-align: left; }
     .field { margin-bottom: 16px; }
@@ -214,12 +206,15 @@
   <main class="sheet">
     <p class="brand">Registration</p>
     <p class="sub" id="pageSub">Admin login</p>
-    <p class="admin-id" id="adminIdLabel">Admin: vishnu.xerago@gmail.com</p>
 
     <section id="loginCard" class="login-wrap">
       <div id="panel-login" class="panel active">
         <div class="field">
-          <label for="password">Password</label>
+          <label for="adminId">Admin ID</label>
+          <input id="adminId" type="email" autocomplete="username" value="vishnu.xerago@gmail.com" />
+        </div>
+        <div class="field">
+          <label for="password">Admin Password</label>
           <input id="password" type="password" autocomplete="current-password" />
         </div>
         <button type="button" class="btn" id="loginBtn">Log in</button>
@@ -229,7 +224,7 @@
 
       <div id="panel-forgot" class="panel">
         <div class="field">
-          <label for="forgotEmail">Admin email</label>
+          <label for="forgotEmail">Admin ID</label>
           <input id="forgotEmail" type="email" placeholder="you@gmail.com" value="vishnu.xerago@gmail.com" />
         </div>
         <button type="button" class="btn" id="sendResetBtn">Send reset code</button>
@@ -296,7 +291,7 @@
       var DOWNLOAD_KEY = "nfc_admin_last_export_at";
       var DOWNLOAD_COOLDOWN_MS = 2 * 60 * 1000;
 
-      document.getElementById("adminIdLabel").textContent = "Admin: " + ADMIN_EMAIL;
+      document.getElementById("adminId").value = ADMIN_EMAIL;
       document.getElementById("forgotEmail").value = ADMIN_EMAIL;
 
       var loginCard = document.getElementById("loginCard");
@@ -511,7 +506,11 @@
         var msg = document.getElementById("loginMsg");
         msg.textContent = "Signing in…";
         msg.className = "status";
-        api({ action: "adminLogin", password: document.getElementById("password").value })
+        api({
+          action: "adminLogin",
+          email: document.getElementById("adminId").value,
+          password: document.getElementById("password").value
+        })
           .then(function (body) {
             if (!body.ok) {
               msg.textContent = body.error || "Login failed";
@@ -529,6 +528,8 @@
       });
 
       document.getElementById("showForgotBtn").addEventListener("click", function () {
+        document.getElementById("forgotEmail").value =
+          document.getElementById("adminId").value || ADMIN_EMAIL;
         showAuthPanel("panel-forgot");
         pageSub.textContent = "Forgot password";
       });
@@ -551,7 +552,7 @@
               msg.textContent = body.error || "Failed";
               msg.className = "status err";
               if (/unknown action/i.test(body.error || "")) {
-                msg.textContent = "Apps Script not updated. Paste latest google-apps-script.js and deploy a New version.";
+                msg.textContent = "Forgot password needs a new Apps Script deploy. Open google-apps-script.js → paste into Apps Script → Deploy → Manage deployments → Edit → New version → Deploy. Also set Script property ADMIN_EMAIL=" + ADMIN_EMAIL;
               }
               return;
             }
