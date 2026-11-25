@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f766e" />
+  <title>Admin · WhatsApp verification</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --brand: #0f766e;
+      --danger: #b91c1c;
+      --ok: #047857;
+      --border: #e2e8f0;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background: var(--bg);
+      min-height: 100dvh;
+    }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 40px; }
+    h1 { margin: 0 0 6px; font-size: 1.4rem; }
+    .sub { margin: 0 0 18px; color: var(--muted); font-size: 0.92rem; }
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
+    input, button, select, textarea {
+      font: inherit;
+      width: 100%;
+    }
+    input, select, textarea {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 11px 14px;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.secondary { background: #fff; color: var(--ink); border: 1px solid var(--border); }
+    button.danger { background: var(--danger); }
+    button.ok { background: var(--ok); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .row button { width: auto; flex: 1; min-width: 120px; }
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .tabs button {
+      width: auto;
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      font-weight: 600;
+    }
+    .tabs button.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .item {
+      border-top: 1px solid var(--border);
+      padding: 14px 0;
+    }
+    .item:first-child { border-top: none; }
+    .meta { font-size: 0.82rem; color: var(--muted); line-height: 1.4; }
+    .mobile { font-size: 1.05rem; font-weight: 700; margin: 0 0 4px; }
+    .badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #ecfdf5;
+      color: var(--ok);
+    }
+    .badge.warn { background: #fff7ed; color: #c2410c; }
+    .badge.bad { background: #fef2f2; color: var(--danger); }
+    .msg { color: var(--muted); font-size: 0.9rem; }
+    .err { color: var(--danger); }
+    .hidden { display: none !important; }
+    .checklist {
+      background: #f0fdfa;
+      border: 1px solid #99f6e4;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.85rem;
+      margin: 8px 0 12px;
+      color: #115e59;
+    }
+    .toolbar { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .toolbar h2 { margin: 0; font-size: 1.05rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Admin dashboard</h1>
+    <p class="sub">Match the WhatsApp sender number to a pending registration, then approve or reject. Tokens are not stored in plain text.</p>
+
+    <section id="loginCard" class="card">
+      <label for="password">Admin password</label>
+      <input id="password" type="password" autocomplete="current-password" />
+      <button type="button" id="loginBtn">Log in</button>
+      <p class="msg" id="loginMsg"></p>
+    </section>
+
+    <section id="dash" class="hidden">
+      <div class="toolbar">
+        <h2>Registrations</h2>
+        <div class="row" style="width:auto">
+          <button type="button" class="secondary" id="refreshBtn">Refresh</button>
+          <button type="button" class="secondary" id="logoutBtn">Log out</button>
+        </div>
+      </div>
+
+      <div class="tabs" id="tabs">
+        <button type="button" data-status="awaiting_admin" class="active">Pending</button>
+        <button type="button" data-status="verified">Approved</button>
+        <button type="button" data-status="rejected">Rejected</button>
+        <button type="button" data-status="expired">Expired</button>
+        <button type="button" data-status="all">All</button>
+        <button type="button" data-status="history">History</button>
+      </div>
+
+      <div class="card">
+        <div class="checklist">
+          Before Approve: open WhatsApp, confirm the <strong>sender number</strong> matches the mobile below, and that the VERIFY token in the chat belongs to this registration.
+        </div>
+        <div id="list" class="msg">Loading…</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      var loginCard = document.getElementById("loginCard");
+      var dash = document.getElementById("dash");
+      var loginMsg = document.getElementById("loginMsg");
+      var list = document.getElementById("list");
+      var current = "awaiting_admin";
+
+      function showDash(on) {
+        loginCard.classList.toggle("hidden", on);
+        dash.classList.toggle("hidden", !on);
+      }
+
+      function badgeClass(status) {
+        if (status === "verified") return "badge";
+        if (status === "awaiting_admin" || status === "pending") return "badge warn";
+        return "badge bad";
+      }
+
+      function loadRegistrations() {
+        list.textContent = "Loading…";
+        fetch("/api/admin/registrations?status=" + encodeURIComponent(current), { credentials: "same-origin" })
+          .then(function (r) {
+            if (r.status === 401) {
+              showDash(false);
+              throw new Error("Please log in");
+            }
+            return r.json();
+          })
+          .then(function (data) {
+            if (!data.ok) throw new Error(data.error || "Failed");
+            var rows = data.registrations || [];
+            if (!rows.length) {
+              list.innerHTML = "<p class='msg'>No registrations in this view.</p>";
+              return;
+            }
+            list.innerHTML = rows.map(function (row) {
+              return (
+                "<div class='item' data-id='" + row.id + "'>" +
+                  "<p class='mobile'>" + row.mobile + " <span class='" + badgeClass(row.status) + "'>" + row.status + "</span></p>" +
+                  "<p class='meta'>ID: " + row.id + "<br>Created: " + row.createdAt + "<br>Expires: " + row.expiresAt +
+                  (row.verifiedAt ? "<br>Verified: " + row.verifiedAt : "") +
+                  (row.rejectReason ? "<br>Reason: " + row.rejectReason : "") +
+                  "</p>" +
+                  (row.status === "awaiting_admin" || row.status === "pending"
+                    ? "<label>Optional: paste VERIFY token from WhatsApp</label>" +
+                      "<input type='text' class='token' placeholder='Token from message' />" +
+                      "<div class='row'>" +
+                        "<button type='button' class='ok act-approve'>Approve</button>" +
+                        "<button type='button' class='danger act-reject'>Reject</button>" +
+                      "</div>"
+                    : "") +
+                "</div>"
+              );
+            }).join("");
+          })
+          .catch(function (err) {
+            list.innerHTML = "<p class='err'>" + (err.message || "Error") + "</p>";
+          });
+      }
+
+      function loadHistory() {
+        list.textContent = "Loading…";
+        fetch("/api/admin/history", { credentials: "same-origin" })
+          .then(function (r) {
+            if (r.status === 401) {
+              showDash(false);
+              throw new Error("Please log in");
+            }
+            return r.json();
+          })
+          .then(function (data) {
+            if (!data.ok) throw new Error(data.error || "Failed");
+            var rows = data.history || [];
+            if (!rows.length) {
+              list.innerHTML = "<p class='msg'>No history yet.</p>";
+              return;
+            }
+            list.innerHTML = rows.map(function (h) {
+              return (
+                "<div class='item'>" +
+                  "<p class='mobile'>" + h.action + " <span class='badge'>" + h.actor + "</span></p>" +
+                  "<p class='meta'>Reg: " + (h.registrationId || "—") + "<br>" + h.createdAt +
+                  (h.meta ? "<br>" + JSON.stringify(h.meta) : "") +
+                  "</p>" +
+                "</div>"
+              );
+            }).join("");
+          })
+          .catch(function (err) {
+            list.innerHTML = "<p class='err'>" + (err.message || "Error") + "</p>";
+          });
+      }
+
+      function refresh() {
+        if (current === "history") loadHistory();
+        else loadRegistrations();
+      }
+
+      document.getElementById("loginBtn").addEventListener("click", function () {
+        loginMsg.textContent = "Signing in…";
+        loginMsg.className = "msg";
+        fetch("/api/admin/login", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ password: document.getElementById("password").value })
+        })
+          .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+          .then(function (res) {
+            if (!res.ok || !res.body.ok) {
+              loginMsg.textContent = (res.body && res.body.error) || "Login failed";
+              loginMsg.className = "msg err";
+              return;
+            }
+            showDash(true);
+            refresh();
+          })
+          .catch(function () {
+            loginMsg.textContent = "Network error";
+            loginMsg.className = "msg err";
+          });
+      });
+
+      document.getElementById("logoutBtn").addEventListener("click", function () {
+        fetch("/api/admin/logout", { method: "POST", credentials: "same-origin" }).finally(function () {
+          showDash(false);
+        });
+      });
+
+      document.getElementById("refreshBtn").addEventListener("click", refresh);
+
+      document.getElementById("tabs").addEventListener("click", function (e) {
+        var btn = e.target.closest("button[data-status]");
+        if (!btn) return;
+        current = btn.getAttribute("data-status");
+        Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function (b) {
+          b.classList.toggle("active", b === btn);
+        });
+        refresh();
+      });
+
+      list.addEventListener("click", function (e) {
+        var item = e.target.closest(".item");
+        if (!item) return;
+        var id = item.getAttribute("data-id");
+        if (e.target.classList.contains("act-approve")) {
+          var token = (item.querySelector(".token") || {}).value || "";
+          e.target.disabled = true;
+          fetch("/api/admin/approve", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ id: id, token: token || undefined })
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (!data.ok) alert(data.error || "Approve failed");
+              refresh();
+            })
+            .catch(function () { alert("Network error"); refresh(); });
+        }
+        if (e.target.classList.contains("act-reject")) {
+          var reason = prompt("Reject reason (optional)") || "";
+          e.target.disabled = true;
+          fetch("/api/admin/reject", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ id: id, reason: reason })
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (!data.ok) alert(data.error || "Reject failed");
+              refresh();
+            })
+            .catch(function () { alert("Network error"); refresh(); });
+        }
+      });
+
+      // If session cookie exists, try loading pending
+      fetch("/api/admin/registrations?status=awaiting_admin", { credentials: "same-origin" })
+        .then(function (r) {
+          if (r.ok) {
+            showDash(true);
+            refresh();
+          }
+        })
+        .catch(function () {});
+    })();
+  </script>
+</body>
+</html>

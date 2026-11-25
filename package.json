@@ -1,0 +1,15 @@
+{
+  "name": "nfc-whatsapp-verify",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Free WhatsApp-based mobile verification (manual admin approval)",
+  "scripts": {
+    "dev": "wrangler pages dev --persist-to=.wrangler/state",
+    "db:migrate:local": "wrangler d1 execute nfc-verify --local --file=migrations/0001_init.sql",
+    "db:migrate:remote": "wrangler d1 execute nfc-verify --remote --file=migrations/0001_init.sql",
+    "deploy": "wrangler pages deploy --project-name=nfc-whatsapp-verify"
+  },
+  "devDependencies": {
+    "wrangler": "^4.45.0"
+  }
+}

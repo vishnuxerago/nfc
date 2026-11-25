@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f766e" />
+  <title>WhatsApp mobile verification</title>
+  <style>
+    :root {
+      --bg: #f0fdfa;
+      --ink: #134e4a;
+      --muted: #5b7c78;
+      --brand: #0f766e;
+      --brand-dark: #115e59;
+      --danger: #b91c1c;
+      --surface: #ffffff;
+      --border: #99f6e4;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse 80% 50% at 10% -10%, #5eead4 0%, transparent 55%),
+        radial-gradient(ellipse 60% 40% at 100% 0%, #99f6e4 0%, transparent 50%),
+        var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px 40px;
+    }
+    .sheet {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border-radius: 14px;
+      box-shadow: 0 10px 40px rgba(15, 118, 110, 0.12);
+      border: 1px solid var(--border);
+      padding: 28px 22px 24px;
+    }
+    .brand {
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--brand);
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.5rem; line-height: 1.25; }
+    .lede { margin: 0 0 22px; color: var(--muted); font-size: 0.95rem; line-height: 1.45; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
+    .field { margin-bottom: 16px; }
+    .phone-row { display: grid; grid-template-columns: 72px 1fr; gap: 8px; }
+    input, button {
+      font: inherit;
+      width: 100%;
+    }
+    input {
+      border: 1.5px solid #a7f3d0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      background: #f8fffe;
+      color: var(--ink);
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.18);
+    }
+    input.invalid { border-color: #f87171; background: #fef2f2; }
+    .prefix {
+      display: grid;
+      place-items: center;
+      border: 1.5px solid #a7f3d0;
+      border-radius: 10px;
+      background: #ecfdf5;
+      font-weight: 700;
+      color: var(--brand-dark);
+    }
+    .hint, .error { font-size: 0.8rem; margin: 6px 0 0; line-height: 1.35; }
+    .hint { color: var(--muted); }
+    .error { color: var(--danger); display: none; }
+    .error.show { display: block; }
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 14px 16px;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.65; cursor: wait; }
+    button.secondary {
+      background: #fff;
+      color: var(--brand-dark);
+      border: 1.5px solid var(--border);
+      margin-top: 10px;
+    }
+    .status { margin-top: 14px; font-size: 0.88rem; text-align: center; color: var(--muted); min-height: 1.2em; }
+    .status.err { color: var(--danger); }
+    .status.ok { color: var(--brand-dark); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .box {
+      background: #f0fdfa;
+      border: 1px dashed #5eead4;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 0 0 14px;
+    }
+    .steps { margin: 0 0 16px; padding-left: 18px; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+    .footer-note { margin-top: 18px; text-align: center; font-size: 0.75rem; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <div id="step-form" class="panel active">
+      <p class="brand">Registration</p>
+      <h1>Verify with WhatsApp</h1>
+      <p class="lede">Enter your Indian mobile number. You’ll send a short message on WhatsApp; our team confirms the sender, then you’re verified.</p>
+
+      <form id="reg-form" novalidate>
+        <div class="field">
+          <label for="mobile">Mobile number</label>
+          <div class="phone-row">
+            <div class="prefix">+91</div>
+            <input id="mobile" name="mobile" type="tel" inputmode="numeric" maxlength="10" placeholder="9876543210" autocomplete="tel-national" required />
+          </div>
+          <p class="hint">10 digits starting with 6–9. No country code.</p>
+          <p class="error" id="mobileError">Enter a valid 10-digit Indian mobile number.</p>
+        </div>
+        <button type="submit" id="submitBtn">Verify with WhatsApp</button>
+        <p class="status" id="formStatus" role="status"></p>
+      </form>
+    </div>
+
+    <div id="step-wait" class="panel">
+      <p class="brand">Waiting</p>
+      <h1>Send the WhatsApp message</h1>
+      <p class="lede">WhatsApp should open with a pre-filled message. Send it, then wait here — status updates automatically after admin approval.</p>
+      <ol class="steps">
+        <li>Tap Open WhatsApp and send the message.</li>
+        <li>Use the same phone number you entered.</li>
+        <li>Keep this page open until verified (token expires in 5 minutes).</li>
+      </ol>
+      <p class="hint">Message to send:</p>
+      <pre class="box" id="messageBox"></pre>
+      <button type="button" id="openWaBtn">Open WhatsApp</button>
+      <button type="button" class="secondary" id="retryBtn">Start over</button>
+      <p class="status" id="waitStatus" role="status">Waiting for admin approval…</p>
+    </div>
+
+    <p class="footer-note">Free verification · Manual WhatsApp confirmation · Not an automatic OTP service</p>
+  </main>
+
+  <script>
+    (function () {
+      var formPanel = document.getElementById("step-form");
+      var waitPanel = document.getElementById("step-wait");
+      var form = document.getElementById("reg-form");
+      var mobileInput = document.getElementById("mobile");
+      var mobileError = document.getElementById("mobileError");
+      var formStatus = document.getElementById("formStatus");
+      var waitStatus = document.getElementById("waitStatus");
+      var submitBtn = document.getElementById("submitBtn");
+      var openWaBtn = document.getElementById("openWaBtn");
+      var retryBtn = document.getElementById("retryBtn");
+      var messageBox = document.getElementById("messageBox");
+
+      var state = { registrationId: null, waLink: null, pollTimer: null };
+
+      function show(panel) {
+        formPanel.classList.toggle("active", panel === "form");
+        waitPanel.classList.toggle("active", panel === "wait");
+      }
+
+      function validMobile(v) {
+        return /^[6-9]\d{9}$/.test(String(v || "").replace(/\D/g, ""));
+      }
+
+      function stopPoll() {
+        if (state.pollTimer) {
+          clearInterval(state.pollTimer);
+          state.pollTimer = null;
+        }
+      }
+
+      function startPoll() {
+        stopPoll();
+        state.pollTimer = setInterval(checkStatus, 3000);
+        checkStatus();
+      }
+
+      function checkStatus() {
+        if (!state.registrationId) return;
+        fetch("/api/status?id=" + encodeURIComponent(state.registrationId), { credentials: "same-origin" })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data.ok) {
+              waitStatus.textContent = data.error || "Could not check status";
+              waitStatus.className = "status err";
+              return;
+            }
+            if (data.status === "verified") {
+              stopPoll();
+              waitStatus.textContent = "Verified — redirecting…";
+              waitStatus.className = "status ok";
+              window.location.href = "thank-you.html";
+              return;
+            }
+            if (data.status === "rejected") {
+              stopPoll();
+              waitStatus.textContent = "Rejected" + (data.rejectReason ? ": " + data.rejectReason : "") + ". Tap Start over to try again.";
+              waitStatus.className = "status err";
+              return;
+            }
+            if (data.status === "expired") {
+              stopPoll();
+              waitStatus.textContent = "Token expired (5 minutes). Tap Start over for a new code.";
+              waitStatus.className = "status err";
+              return;
+            }
+            waitStatus.textContent = "Waiting for admin approval…";
+            waitStatus.className = "status";
+          })
+          .catch(function () {
+            waitStatus.textContent = "Network issue — retrying…";
+            waitStatus.className = "status err";
+          });
+      }
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        mobileError.classList.remove("show");
+        mobileInput.classList.remove("invalid");
+        formStatus.textContent = "";
+        formStatus.className = "status";
+
+        var mobile = mobileInput.value.replace(/\D/g, "");
+        if (!validMobile(mobile)) {
+          mobileInput.classList.add("invalid");
+          mobileError.classList.add("show");
+          return;
+        }
+
+        submitBtn.disabled = true;
+        formStatus.textContent = "Creating verification…";
+
+        fetch("/api/register", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ mobile: mobile })
+        })
+          .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
+          .then(function (res) {
+            submitBtn.disabled = false;
+            if (!res.ok || !res.body.ok) {
+              formStatus.textContent = (res.body && res.body.error) || "Could not start verification";
+              formStatus.className = "status err";
+              return;
+            }
+            state.registrationId = res.body.registrationId;
+            state.waLink = res.body.waLink;
+            messageBox.textContent = "VERIFY " + res.body.token + "\nMobile: " + mobile + "\nID: " + res.body.registrationId;
+            show("wait");
+            waitStatus.textContent = "Waiting for admin approval…";
+            waitStatus.className = "status";
+            window.open(res.body.waLink, "_blank");
+            startPoll();
+          })
+          .catch(function () {
+            submitBtn.disabled = false;
+            formStatus.textContent = "Could not reach server. Check your connection.";
+            formStatus.className = "status err";
+          });
+      });
+
+      openWaBtn.addEventListener("click", function () {
+        if (state.waLink) window.open(state.waLink, "_blank");
+      });
+
+      retryBtn.addEventListener("click", function () {
+        stopPoll();
+        state = { registrationId: null, waLink: null, pollTimer: null };
+        show("form");
+        formStatus.textContent = "";
+      });
+    })();
+  </script>
+</body>
+</html>

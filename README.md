@@ -1,78 +1,48 @@
-# NFC Check-in
+# NFC + WhatsApp mobile verification
 
-**Open-source, no-app NFC → web form → Google Sheets → redirect.**
-
-Tap an NFC card (or scan a QR of the same URL). The phone opens a mobile form, saves the customer’s name and WhatsApp number to a Google Sheet, then redirects to your page.
-
-Works on **iOS 14+** and **modern Android** using native NDEF URL reading — customers do not install an app.
+**Free** customer registration: enter an Indian mobile number → send a pre-filled WhatsApp message → admin confirms the sender → status becomes verified.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg)](LICENSE)
 
+## Free stack (₹0/month)
+
+- **Cloudflare Pages** — website  
+- **Cloudflare Pages Functions** — API  
+- **Cloudflare D1** — database  
+- **WhatsApp Business app** + `wa.me` — customer message (manual)  
+- **Admin dashboard** — approve / reject  
+
+No SMS gateways, no paid OTP providers, no unofficial WhatsApp bots.
+
 ## How it works
 
-```
-NFC card (NTAG213/215/216)
-   stores one HTTPS URL
-        ↓
-Phone opens index.html
-        ↓
-Customer enters name + WhatsApp
-        ↓
-Google Apps Script appends a Sheet row
-        ↓
-Browser redirects to your URL
-```
+1. Customer opens the site and enters a 10-digit Indian mobile number.  
+2. Backend creates a registration ID + random token (5‑minute expiry, hashed in DB).  
+3. Site opens WhatsApp with a pre-filled `VERIFY …` message to your business number.  
+4. Customer sends the message manually.  
+5. Admin matches WhatsApp **sender** to the pending row and Approves.  
+6. Customer page polls status and continues to the thank-you screen.
 
-## Features
+v1 does **not** auto-read WhatsApp. Architecture includes `markVerified()` so official Cloud API automation can be added later without a rewrite.
 
-- Single-file form (`index.html`) — HTML, CSS, and JS together
-- Country-code selector; numbers saved as E.164 (e.g. `+15551234567`)
-- Google Sheets storage via Apps Script (free)
-- Configurable redirect URL and return-visit behavior
-- Plain-language deploy guide for non-developers
+## Quick links after deploy
 
-## Quick start
+- Customer: `https://<your-project>.pages.dev/`  
+- Admin: `https://<your-project>.pages.dev/admin.html`  
 
-1. Create a Google Sheet with headers: `Timestamp | Name | WhatsApp`
-2. Paste [`google-apps-script.js`](google-apps-script.js) into **Extensions → Apps Script**, deploy as a **Web app** (access: **Anyone**)
-3. Edit the three config values at the top of [`index.html`](index.html):
+## Setup
 
-```js
-const REDIRECT_URL = "https://your-destination.example";
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/.../exec";
-const RETURN_BEHAVIOR = "always_form"; // or "skip_if_seen"
-```
+Follow **[DEPLOY.md](DEPLOY.md)** step by step (Cloudflare login → D1 → secrets → deploy).
 
-4. Host `index.html` on [Netlify Drop](https://app.netlify.com/drop), GitHub Pages, or Vercel
-5. Write that HTTPS URL to an **NTAG213/215/216** card with **NFC Tools** (URL / URI record)
+## Project layout
 
-Full walkthrough: **[DEPLOY.md](DEPLOY.md)**
-
-## Repository layout
-
-| File | Purpose |
-|------|---------|
-| `index.html` | Form UI + validation + submit + redirect |
-| `google-apps-script.js` | Sheet backend (paste into Apps Script) |
-| `DEPLOY.md` | Step-by-step hosting, NFC writing, tests |
-| `LICENSE` | MIT |
-
-## Return visits
-
-| `RETURN_BEHAVIOR` | Second tap |
-|-------------------|------------|
-| `always_form` | Show the form again |
-| `skip_if_seen` | Skip to `REDIRECT_URL` if this browser already submitted |
-
-## Compatibility
-
-- **iPhone (iOS 14+):** screen on; hold top edge to the card; tap the system banner
-- **Android:** NFC on; hold back of phone to the card
-- **Fallback:** print a QR code of the same URL for phones without NFC
-
-## Contributing
-
-Issues and pull requests are welcome. Keep the form a single static file when possible so non-developers can still deploy with drag-and-drop hosting.
+| Path | Role |
+|------|------|
+| `public/` | Customer + admin + thank-you UI |
+| `functions/api/` | Register, status, admin APIs |
+| `functions/_lib/` | Crypto, auth, rate limit, DB helpers |
+| `migrations/` | D1 schema |
+| `legacy/` | Old GitHub Pages + Apps Script files |
 
 ## License
 
