@@ -155,7 +155,6 @@
       </form>
     </div>
 
-    <p class="footer-note">Free email OTP via Gmail · ~100 emails/day on free Gmail</p>
   </main>
 
   <script>
@@ -252,18 +251,8 @@
           .then(function (body) {
             submitBtn.disabled = false;
             if (!body.ok) {
-              if (body.alreadyRegistered && body.registration) {
-                var reg = body.registration;
-                var when = "";
-                try {
-                  if (reg.verifiedAt) when = new Date(reg.verifiedAt).toLocaleString();
-                } catch (e) { when = reg.verifiedAt || ""; }
-                formStatus.innerHTML =
-                  "<strong>Already registered</strong><br>" +
-                  "Name: " + (reg.name || "—") + "<br>" +
-                  "Number: " + (reg.mobile || "—") + "<br>" +
-                  "Email: " + (reg.email || "—") + "<br>" +
-                  "Verified: " + (when || "yes");
+              if (body.alreadyRegistered) {
+                formStatus.textContent = "Already registered with this number";
                 formStatus.className = "status err";
                 return;
               }
