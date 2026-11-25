@@ -252,6 +252,21 @@
           .then(function (body) {
             submitBtn.disabled = false;
             if (!body.ok) {
+              if (body.alreadyRegistered && body.registration) {
+                var reg = body.registration;
+                var when = "";
+                try {
+                  if (reg.verifiedAt) when = new Date(reg.verifiedAt).toLocaleString();
+                } catch (e) { when = reg.verifiedAt || ""; }
+                formStatus.innerHTML =
+                  "<strong>Already registered</strong><br>" +
+                  "Name: " + (reg.name || "—") + "<br>" +
+                  "Number: " + (reg.mobile || "—") + "<br>" +
+                  "Email: " + (reg.email || "—") + "<br>" +
+                  "Verified: " + (when || "yes");
+                formStatus.className = "status err";
+                return;
+              }
               formStatus.textContent = body.error || "Could not send code";
               formStatus.className = "status err";
               return;

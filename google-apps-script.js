@@ -66,6 +66,25 @@ function actionSendOtp(data, e) {
   var email = normalizeEmail_(data.email);
   if (!email) return { ok: false, error: "Enter a valid email address" };
 
+  ensureSheets_();
+
+  var existing = findVerifiedByMobile_(mobileInfo.e164);
+  if (existing) {
+    return {
+      ok: false,
+      alreadyRegistered: true,
+      error: "Already registered",
+      registration: {
+        name: existing.name || "",
+        mobile: "+" + existing.mobile,
+        email: existing.email || "",
+        status: existing.status,
+        verifiedAt: existing.verified_at || null,
+        createdAt: existing.created_at || null,
+      },
+    };
+  }
+
   var ip = clientIp_(e);
   if (!hitRate_("ip:" + ip, MAX_PER_IP).allowed) {
     return { ok: false, error: "Too many attempts from this network. Try again later." };
@@ -83,7 +102,6 @@ function actionSendOtp(data, e) {
   var createdAt = new Date();
   var expiresAt = new Date(createdAt.getTime() + OTP_TTL_MS);
 
-  ensureSheets_();
   sheetRegistrations_().appendRow([
     id,
     name,
@@ -380,6 +398,29 @@ function hitRate_(key, max) {
 }
 
 function rowFromValues_(r, rowNumber) {
+  // Support older rows without a name column: id | mobile | email | ...
+  var col1 = String(r[1] || "");
+  var col2 = String(r[2] || "");
+  var oldSchema = /^91\d{10}$/.test(col1) && col2.indexOf("@") !== -1;
+
+  if (oldSchema) {
+    return {
+      rowNumber: rowNumber,
+      id: String(r[0] || ""),
+      name: "",
+      mobile: col1,
+      email: col2,
+      token_hash: String(r[3] || ""),
+      status: String(r[4] || ""),
+      created_at: String(r[5] || ""),
+      expires_at: String(r[6] || ""),
+      verified_at: String(r[7] || ""),
+      rejected_at: String(r[8] || ""),
+      reject_reason: String(r[9] || ""),
+      otp_attempts: r[10] || 0,
+    };
+  }
+
   return {
     rowNumber: rowNumber,
     id: String(r[0] || ""),
@@ -403,6 +444,22 @@ function findRegistration_(id) {
     if (String(values[i][0]) === id) return rowFromValues_(values[i], i + 1);
   }
   return null;
+}
+
+function findVerifiedByMobile_(e164) {
+  var values = sheetRegistrations_().getDataRange().getValues();
+  var found = null;
+  for (var i = 1; i < values.length; i++) {
+    var row = rowFromValues_(values[i], i + 1);
+    if (!row.id) continue;
+    if (String(row.mobile) !== String(e164)) continue;
+    row = expireIfNeeded_(row);
+    if (row.status === "verified") {
+      found = row;
+      // keep scanning so the latest verified row wins
+    }
+  }
+  return found;
 }
 
 function expireIfNeeded_(row) {
