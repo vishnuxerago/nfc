@@ -162,22 +162,21 @@ function actionVerifyOtp(data) {
 
   var attempts = Number(row.otp_attempts || 0);
   if (attempts >= MAX_OTP_ATTEMPTS) {
-    sheetRegistrations_().getRange(row.rowNumber, 6).setValue("expired");
+    setRowField_(row, "status", "expired");
     audit_(id, "otp_locked", "system", {});
     return { ok: false, error: "Too many wrong attempts. Request a new code." };
   }
 
   var hash = sha256Hex_(otp);
   if (hash !== row.token_hash) {
-    sheetRegistrations_().getRange(row.rowNumber, 12).setValue(attempts + 1);
+    setRowField_(row, "otp_attempts", attempts + 1);
     audit_(id, "otp_fail", "system", { attempts: attempts + 1 });
     return { ok: false, error: "Incorrect code. Try again." };
   }
 
   var now = new Date().toISOString();
-  var sheet = sheetRegistrations_();
-  sheet.getRange(row.rowNumber, 6).setValue("verified");
-  sheet.getRange(row.rowNumber, 9).setValue(now);
+  setRowField_(row, "status", "verified");
+  setRowField_(row, "verified_at", now);
   audit_(id, "verified", "system", { method: "email_otp" });
 
   return { ok: true, verifiedAt: now };
@@ -415,15 +414,38 @@ function hitRate_(key, max) {
   return { allowed: true };
 }
 
+/**
+ * Column map is 1-based for SpreadsheetApp getRange(row, col).
+ * Old (no name): id|mobile|email|token_hash|status|created|expires|verified|rejected|reason|attempts
+ * New:            id|name|mobile|email|token_hash|status|created|expires|verified|rejected|reason|attempts
+ */
+function colsForSchema_(oldSchema) {
+  if (oldSchema) {
+    return { status: 5, verified_at: 8, otp_attempts: 11 };
+  }
+  return { status: 6, verified_at: 9, otp_attempts: 12 };
+}
+
+function setRowField_(row, field, value) {
+  var col = row.cols && row.cols[field];
+  if (!col) {
+    throw new Error("Unknown field for schema write: " + field);
+  }
+  sheetRegistrations_().getRange(row.rowNumber, col).setValue(value);
+}
+
 function rowFromValues_(r, rowNumber) {
   // Support older rows without a name column: id | mobile | email | ...
   var col1 = String(r[1] || "");
   var col2 = String(r[2] || "");
   var oldSchema = /^91\d{10}$/.test(col1) && col2.indexOf("@") !== -1;
+  var cols = colsForSchema_(oldSchema);
 
   if (oldSchema) {
     return {
       rowNumber: rowNumber,
+      oldSchema: true,
+      cols: cols,
       id: String(r[0] || ""),
       name: "",
       mobile: col1,
@@ -441,6 +463,8 @@ function rowFromValues_(r, rowNumber) {
 
   return {
     rowNumber: rowNumber,
+    oldSchema: false,
+    cols: cols,
     id: String(r[0] || ""),
     name: String(r[1] || ""),
     mobile: String(r[2] || ""),
@@ -484,7 +508,7 @@ function expireIfNeeded_(row) {
   if (!row) return row;
   if (row.status === "verified" || row.status === "expired") return row;
   if (row.status === "awaiting_otp" && new Date(row.expires_at).getTime() <= Date.now()) {
-    sheetRegistrations_().getRange(row.rowNumber, 6).setValue("expired");
+    setRowField_(row, "status", "expired");
     audit_(row.id, "expired", "system", {});
     row.status = "expired";
   }
