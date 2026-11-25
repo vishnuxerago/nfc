@@ -1,106 +1,71 @@
-# Deploy guide (GitHub Pages + Google Sheet — no Cloudflare)
+# Deploy guide — Free email OTP (GitHub Pages + Gmail)
 
-**Cost: ₹0.** Hosting on GitHub Pages. Data in Google Sheets. WhatsApp Business app for messages. Manual admin approval.
+**Cost: ₹0** for low volume. Apps Script sends mail with **your Gmail**. Consumer Gmail ~**100 emails/day**.
 
 ---
 
-## Links after setup
+## Live links
 
 | Page | URL |
 |------|-----|
-| Customer register | `https://vishnuxerago.github.io/nfc/` |
-| Admin dashboard | `https://vishnuxerago.github.io/nfc/admin.html` |
-| Thank you | `https://vishnuxerago.github.io/nfc/thank-you.html` |
-
-Write the customer URL on your NFC card.
+| Register | https://vishnuxerago.github.io/nfc/ |
+| Admin | https://vishnuxerago.github.io/nfc/admin.html |
 
 ---
 
-## Step 1 — Google Sheet (personal Gmail)
+## Setup (order)
 
-Use **personal Gmail** in Incognito (not office Outlook).
+### 1. Google Sheet (personal Gmail)
 
-1. Open [https://sheets.new](https://sheets.new)
-2. Name the spreadsheet `NFC WhatsApp Verify`
-3. Rename the first tab to **Registrations**
-4. Row 1 headers:
+1. [https://sheets.new](https://sheets.new) while signed into **personal Gmail**
+2. **Extensions → Apps Script**
+3. Paste `google-apps-script.js` → Save  
+   (Script creates **Registrations** + **Audit** tabs automatically)
 
-`id | mobile | token_hash | status | created_at | expires_at | verified_at | rejected_at | reject_reason`
+### 2. Script property
 
-5. Add a second tab named **Audit** with headers:
-
-`id | registration_id | action | actor | meta | created_at`
-
-(The script can also create these tabs automatically if missing.)
-
----
-
-## Step 2 — Apps Script
-
-1. In the Sheet: **Extensions → Apps Script**
-2. Delete any starter code
-3. Paste everything from `google-apps-script.js` → **Save**
-4. Left sidebar: **Project Settings** (gear) → **Script properties** → **Add script property**:
+**Project Settings (gear) → Script properties:**
 
 | Property | Value |
 |----------|--------|
-| `BUSINESS_WA_E164` | Your WhatsApp number digits only, e.g. `919876543210` |
-| `ADMIN_PASSWORD` | A strong password for `/admin.html` |
+| `ADMIN_PASSWORD` | Password for `/admin.html` |
+| `EMAIL_FROM_NAME` | Optional display name, e.g. `My Shop` |
 
-5. **Deploy → New deployment → Web app**
-   - Execute as: **Me**
-   - Who has access: **Anyone**
-6. Authorize (Advanced → Go to … → Allow)
-7. Copy the **Web app URL** (`…/exec`)
+You no longer need `BUSINESS_WA_E164` for this email OTP flow.
 
-Test: open that URL in Incognito → you should see JSON like `{"ok":true,"message":"..."}`.
+### 3. Deploy Web app
 
----
+1. **Deploy → New deployment → Web app**
+2. Execute as: **Me**
+3. Who has access: **Anyone**
+4. Authorize **Gmail** + Sheets when Google asks
+5. Copy `/exec` URL into `index.html` and `admin.html` (`APPS_SCRIPT_URL`)
+6. After code changes: **Manage deployments → Edit → New version → Deploy**
 
-## Step 3 — Put the URL in the website files
+### 4. GitHub Pages
 
-In both files, replace the placeholder:
-
-- `index.html` → `APPS_SCRIPT_URL = "..."`  
-- `admin.html` → `APPS_SCRIPT_URL = "..."`  
-
-Use the same `/exec` URL in both.
+Branch **main**, folder **/ (root)** — already used for this repo.
 
 ---
 
-## Step 4 — GitHub Pages (already on if you used it before)
+## Customer flow
 
-1. Push these files to `https://github.com/vishnuxerago/nfc`
-2. Repo **Settings → Pages**
-   - Source: **Deploy from a branch**
-   - Branch: **main** / folder: **/ (root)**
-3. Wait 1–2 minutes, then open `https://vishnuxerago.github.io/nfc/`
+1. Enter mobile + email  
+2. Receive 6-digit code by email  
+3. Enter code on the site → verified → thank-you  
 
 ---
 
-## How staff verifies
+## Limits
 
-1. Customer sends WhatsApp message with `VERIFY …`
-2. You check **sender number** in WhatsApp
-3. Open `admin.html` → log in with `ADMIN_PASSWORD`
-4. Pending list → **Approve** (optional: paste token from chat) or **Reject**
-5. Customer page auto-updates → thank-you screen
+- Free Gmail send quota (~100/day). Workspace accounts have higher limits.
+- OTP expires in **5 minutes**, max **5** wrong tries, rate limits per email/mobile/IP.
 
 ---
 
-## Test checklist
+## Test
 
-- [ ] Invalid mobile rejected  
-- [ ] Valid mobile opens WhatsApp with VERIFY text  
-- [ ] Row appears in Sheet / admin Pending  
-- [ ] Approve → customer goes to thank-you  
-- [ ] Reject → customer sees rejected  
-- [ ] After 5 minutes → expired  
-
----
-
-## Notes
-
-- Tokens are stored as **SHA-256 hashes** (not plain text) in the Sheet.
-- This does **not** auto-read WhatsApp; approval is manual (keeps it free and safe).
-- No Cloudflare / Wrangler / D1 required.
+- [ ] Send code → email arrives (check spam)  
+- [ ] Wrong code → error  
+- [ ] Correct code → thank-you page  
+- [ ] Row appears in Sheet as `verified`  

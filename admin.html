@@ -107,7 +107,7 @@
 <body>
   <div class="wrap">
     <h1>Admin dashboard</h1>
-    <p class="sub">Match the WhatsApp sender number to a pending registration, then approve or reject. Tokens are not stored in plain text.</p>
+    <p class="sub">View email-OTP registrations. Customers verify themselves with the code sent to their Gmail/inbox.</p>
 
     <section id="loginCard" class="card">
       <label for="password">Admin password</label>
@@ -126,9 +126,8 @@
       </div>
 
       <div class="tabs" id="tabs">
-        <button type="button" data-status="awaiting_admin" class="active">Pending</button>
-        <button type="button" data-status="verified">Approved</button>
-        <button type="button" data-status="rejected">Rejected</button>
+        <button type="button" data-status="awaiting_otp" class="active">Awaiting OTP</button>
+        <button type="button" data-status="verified">Verified</button>
         <button type="button" data-status="expired">Expired</button>
         <button type="button" data-status="all">All</button>
         <button type="button" data-status="history">History</button>
@@ -136,7 +135,7 @@
 
       <div class="card">
         <div class="checklist">
-          Before Approve: open WhatsApp, confirm the <strong>sender number</strong> matches the mobile below, and that the VERIFY token in the chat belongs to this registration.
+          OTP codes are emailed automatically. This dashboard is for monitoring registrations (mobile + email + status).
         </div>
         <div id="list" class="msg">Loading…</div>
       </div>
@@ -154,7 +153,7 @@
       var dash = document.getElementById("dash");
       var loginMsg = document.getElementById("loginMsg");
       var list = document.getElementById("list");
-      var current = "awaiting_admin";
+      var current = "awaiting_otp";
 
       function api(payload) {
         if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf("PASTE_") === 0) {
@@ -187,7 +186,7 @@
 
       function badgeClass(status) {
         if (status === "verified") return "badge";
-        if (status === "awaiting_admin" || status === "pending") return "badge warn";
+        if (status === "awaiting_otp") return "badge warn";
         return "badge bad";
       }
 
@@ -211,18 +210,10 @@
               return (
                 "<div class='item' data-id='" + row.id + "'>" +
                   "<p class='mobile'>" + row.mobile + " <span class='" + badgeClass(row.status) + "'>" + row.status + "</span></p>" +
-                  "<p class='meta'>ID: " + row.id + "<br>Created: " + row.createdAt + "<br>Expires: " + row.expiresAt +
+                  "<p class='meta'>Email: " + (row.email || "—") + "<br>ID: " + row.id +
+                  "<br>Created: " + row.createdAt + "<br>Expires: " + row.expiresAt +
                   (row.verifiedAt ? "<br>Verified: " + row.verifiedAt : "") +
-                  (row.rejectReason ? "<br>Reason: " + row.rejectReason : "") +
                   "</p>" +
-                  (row.status === "awaiting_admin" || row.status === "pending"
-                    ? "<label>Optional: paste VERIFY token from WhatsApp</label>" +
-                      "<input type='text' class='token' placeholder='Token from message' />" +
-                      "<div class='row'>" +
-                        "<button type='button' class='ok act-approve'>Approve</button>" +
-                        "<button type='button' class='danger act-reject'>Reject</button>" +
-                      "</div>"
-                    : "") +
                 "</div>"
               );
             }).join("");
@@ -304,32 +295,6 @@
           b.classList.toggle("active", b === btn);
         });
         refresh();
-      });
-
-      list.addEventListener("click", function (e) {
-        var item = e.target.closest(".item");
-        if (!item) return;
-        var id = item.getAttribute("data-id");
-        if (e.target.classList.contains("act-approve")) {
-          var token = (item.querySelector(".token") || {}).value || "";
-          e.target.disabled = true;
-          api({ action: "approve", adminToken: getToken(), id: id, token: token || undefined })
-            .then(function (data) {
-              if (!data.ok) alert(data.error || "Approve failed");
-              refresh();
-            })
-            .catch(function () { alert("Network error"); refresh(); });
-        }
-        if (e.target.classList.contains("act-reject")) {
-          var reason = prompt("Reject reason (optional)") || "";
-          e.target.disabled = true;
-          api({ action: "reject", adminToken: getToken(), id: id, reason: reason })
-            .then(function (data) {
-              if (!data.ok) alert(data.error || "Reject failed");
-              refresh();
-            })
-            .catch(function () { alert("Network error"); refresh(); });
-        }
       });
 
       if (getToken()) {

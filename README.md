@@ -1,36 +1,26 @@
-# NFC + WhatsApp mobile verification
+# NFC registration + free email OTP
 
-Free customer registration: enter an Indian mobile number → send a pre-filled WhatsApp message → admin confirms the sender → verified.
+Customers enter mobile + email, receive a **6-digit code via Gmail** (Apps Script), type it on the page, and get verified.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg)](LICENSE)
 
-## Stack (₹0)
+## Free stack
 
-- **GitHub Pages** — website  
-- **Google Apps Script + Google Sheet** — backend / storage  
-- **WhatsApp Business app** + `wa.me` — customer message  
-- **Admin page** — approve / reject  
+- GitHub Pages — site  
+- Google Apps Script + Sheet — backend  
+- GmailApp — send OTP (your Gmail, ~100/day free)  
 
-No Cloudflare, no paid OTP/SMS, no unofficial WhatsApp bots.
+No Cloudflare, no SMS gateway, no WhatsApp Business API.
 
-## Live URLs
+## Links
 
-- Register: https://vishnuxerago.github.io/nfc/  
-- Admin: https://vishnuxerago.github.io/nfc/admin.html  
+- https://vishnuxerago.github.io/nfc/  
+- https://vishnuxerago.github.io/nfc/admin.html  
 
 ## Setup
 
-Follow **[DEPLOY.md](DEPLOY.md)** (Sheet → Apps Script → paste `/exec` URL → GitHub Pages).
-
-## Files
-
-| File | Role |
-|------|------|
-| `index.html` | Customer registration + WhatsApp flow |
-| `admin.html` | Admin login + approve/reject/history |
-| `thank-you.html` | Animated thank-you after verify |
-| `google-apps-script.js` | Paste into Apps Script |
+See **[DEPLOY.md](DEPLOY.md)**. After updating Apps Script code, always deploy a **New version**.
 
 ## License
 
-[MIT](LICENSE) © 2026 Dinesh Singamala
+[MIT](LICENSE)

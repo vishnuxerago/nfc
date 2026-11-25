@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0f766e" />
-  <title>WhatsApp mobile verification</title>
+  <title>Email verification</title>
   <style>
     :root {
       --bg: #f0fdfa;
@@ -54,10 +54,7 @@
     label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
     .field { margin-bottom: 16px; }
     .phone-row { display: grid; grid-template-columns: 72px 1fr; gap: 8px; }
-    input, button {
-      font: inherit;
-      width: 100%;
-    }
+    input, button { font: inherit; width: 100%; }
     input {
       border: 1.5px solid #a7f3d0;
       border-radius: 10px;
@@ -105,84 +102,83 @@
     .status.ok { color: var(--brand-dark); }
     .panel { display: none; }
     .panel.active { display: block; }
-    .box {
-      background: #f0fdfa;
-      border: 1px dashed #5eead4;
-      border-radius: 10px;
-      padding: 12px;
-      font-size: 0.85rem;
-      white-space: pre-wrap;
-      word-break: break-all;
-      margin: 0 0 14px;
-    }
-    .steps { margin: 0 0 16px; padding-left: 18px; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
     .footer-note { margin-top: 18px; text-align: center; font-size: 0.75rem; color: #94a3b8; }
+    #otp { letter-spacing: 0.35em; font-size: 1.25rem; text-align: center; font-weight: 700; }
   </style>
 </head>
 <body>
   <main class="sheet">
     <div id="step-form" class="panel active">
       <p class="brand">Registration</p>
-      <h1>Verify with WhatsApp</h1>
-      <p class="lede">Enter your Indian mobile number. You’ll send a short message on WhatsApp; our team confirms the sender, then you’re verified.</p>
+      <h1>Verify by email</h1>
+      <p class="lede">Enter your mobile number and email. We’ll send a 6-digit code to your inbox (free Gmail sending).</p>
 
       <form id="reg-form" novalidate>
         <div class="field">
           <label for="mobile">Mobile number</label>
           <div class="phone-row">
             <div class="prefix">+91</div>
-            <input id="mobile" name="mobile" type="tel" inputmode="numeric" maxlength="10" placeholder="9876543210" autocomplete="tel-national" required />
+            <input id="mobile" type="tel" inputmode="numeric" maxlength="10" placeholder="9876543210" autocomplete="tel-national" required />
           </div>
-          <p class="hint">10 digits starting with 6–9. No country code.</p>
+          <p class="hint">10 digits starting with 6–9.</p>
           <p class="error" id="mobileError">Enter a valid 10-digit Indian mobile number.</p>
         </div>
-        <button type="submit" id="submitBtn">Verify with WhatsApp</button>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" type="email" placeholder="you@gmail.com" autocomplete="email" required />
+          <p class="error" id="emailError">Enter a valid email address.</p>
+        </div>
+        <button type="submit" id="submitBtn">Send code to email</button>
         <p class="status" id="formStatus" role="status"></p>
       </form>
     </div>
 
-    <div id="step-wait" class="panel">
-      <p class="brand">Waiting</p>
-      <h1>Send the WhatsApp message</h1>
-      <p class="lede">WhatsApp should open with a pre-filled message. Send it, then wait here — status updates automatically after admin approval.</p>
-      <ol class="steps">
-        <li>Tap Open WhatsApp and send the message.</li>
-        <li>Use the same phone number you entered.</li>
-        <li>Keep this page open until verified (token expires in 5 minutes).</li>
-      </ol>
-      <p class="hint">Message to send:</p>
-      <pre class="box" id="messageBox"></pre>
-      <button type="button" id="openWaBtn">Open WhatsApp</button>
-      <button type="button" class="secondary" id="retryBtn">Start over</button>
-      <p class="status" id="waitStatus" role="status">Waiting for admin approval…</p>
+    <div id="step-otp" class="panel">
+      <p class="brand">Enter code</p>
+      <h1>Check your email</h1>
+      <p class="lede" id="otpLede">We sent a 6-digit code. It expires in 5 minutes.</p>
+      <form id="otp-form" novalidate>
+        <div class="field">
+          <label for="otp">Verification code</label>
+          <input id="otp" type="text" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="one-time-code" required />
+          <p class="error" id="otpError">Enter the 6-digit code.</p>
+        </div>
+        <button type="submit" id="verifyBtn">Verify</button>
+        <button type="button" class="secondary" id="resendBtn">Resend code</button>
+        <button type="button" class="secondary" id="retryBtn">Start over</button>
+        <p class="status" id="otpStatus" role="status"></p>
+      </form>
     </div>
 
-    <p class="footer-note">Free verification · Manual WhatsApp confirmation · Not an automatic OTP service</p>
+    <p class="footer-note">Free email OTP via Gmail · ~100 emails/day on free Gmail</p>
   </main>
 
   <script>
-    // Paste your Google Apps Script Web App URL (ends with /exec)
     var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwhQGf0CVmKO46t-LMClOXAcBy1ZOcJEfJSJz9SgaIQ-RNUIEPw4-L_xB3KJNW88s7oog/exec";
   </script>
   <script>
     (function () {
       var formPanel = document.getElementById("step-form");
-      var waitPanel = document.getElementById("step-wait");
+      var otpPanel = document.getElementById("step-otp");
       var form = document.getElementById("reg-form");
+      var otpForm = document.getElementById("otp-form");
       var mobileInput = document.getElementById("mobile");
+      var emailInput = document.getElementById("email");
+      var otpInput = document.getElementById("otp");
       var mobileError = document.getElementById("mobileError");
+      var emailError = document.getElementById("emailError");
+      var otpError = document.getElementById("otpError");
       var formStatus = document.getElementById("formStatus");
-      var waitStatus = document.getElementById("waitStatus");
+      var otpStatus = document.getElementById("otpStatus");
+      var otpLede = document.getElementById("otpLede");
       var submitBtn = document.getElementById("submitBtn");
-      var openWaBtn = document.getElementById("openWaBtn");
-      var retryBtn = document.getElementById("retryBtn");
-      var messageBox = document.getElementById("messageBox");
+      var verifyBtn = document.getElementById("verifyBtn");
 
-      var state = { registrationId: null, waLink: null, pollTimer: null };
+      var state = { registrationId: null, email: "", mobile: "" };
 
       function api(payload) {
         if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf("PASTE_") === 0) {
-          return Promise.reject(new Error("Setup incomplete: paste APPS_SCRIPT_URL in index.html"));
+          return Promise.reject(new Error("Setup incomplete: paste APPS_SCRIPT_URL"));
         }
         return fetch(APPS_SCRIPT_URL, {
           method: "POST",
@@ -195,113 +191,122 @@
 
       function show(panel) {
         formPanel.classList.toggle("active", panel === "form");
-        waitPanel.classList.toggle("active", panel === "wait");
+        otpPanel.classList.toggle("active", panel === "otp");
       }
 
       function validMobile(v) {
         return /^[6-9]\d{9}$/.test(String(v || "").replace(/\D/g, ""));
       }
 
-      function stopPoll() {
-        if (state.pollTimer) {
-          clearInterval(state.pollTimer);
-          state.pollTimer = null;
+      function validEmail(v) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
+      }
+
+      function sendOtp() {
+        var mobile = mobileInput.value.replace(/\D/g, "");
+        var email = emailInput.value.trim();
+        mobileError.classList.remove("show");
+        emailError.classList.remove("show");
+        mobileInput.classList.remove("invalid");
+        emailInput.classList.remove("invalid");
+        formStatus.textContent = "";
+        formStatus.className = "status";
+
+        var ok = true;
+        if (!validMobile(mobile)) {
+          mobileInput.classList.add("invalid");
+          mobileError.classList.add("show");
+          ok = false;
         }
-      }
+        if (!validEmail(email)) {
+          emailInput.classList.add("invalid");
+          emailError.classList.add("show");
+          ok = false;
+        }
+        if (!ok) return;
 
-      function startPoll() {
-        stopPoll();
-        state.pollTimer = setInterval(checkStatus, 3000);
-        checkStatus();
-      }
+        submitBtn.disabled = true;
+        formStatus.textContent = "Sending code…";
 
-      function checkStatus() {
-        if (!state.registrationId) return;
-        api({ action: "status", id: state.registrationId })
-          .then(function (data) {
-            if (!data.ok) {
-              waitStatus.textContent = data.error || "Could not check status";
-              waitStatus.className = "status err";
+        api({ action: "sendOtp", mobile: mobile, email: email })
+          .then(function (body) {
+            submitBtn.disabled = false;
+            if (!body.ok) {
+              formStatus.textContent = body.error || "Could not send code";
+              formStatus.className = "status err";
               return;
             }
-            if (data.status === "verified") {
-              stopPoll();
-              waitStatus.textContent = "Verified — redirecting…";
-              waitStatus.className = "status ok";
-              window.location.href = "thank-you.html";
-              return;
-            }
-            if (data.status === "rejected") {
-              stopPoll();
-              waitStatus.textContent = "Rejected" + (data.rejectReason ? ": " + data.rejectReason : "") + ". Tap Start over to try again.";
-              waitStatus.className = "status err";
-              return;
-            }
-            if (data.status === "expired") {
-              stopPoll();
-              waitStatus.textContent = "Token expired (5 minutes). Tap Start over for a new code.";
-              waitStatus.className = "status err";
-              return;
-            }
-            waitStatus.textContent = "Waiting for admin approval…";
-            waitStatus.className = "status";
+            state.registrationId = body.registrationId;
+            state.email = email;
+            state.mobile = mobile;
+            otpLede.textContent = "We sent a 6-digit code to " + email + ". It expires in 5 minutes. Check spam if needed.";
+            otpInput.value = "";
+            otpStatus.textContent = "";
+            show("otp");
           })
-          .catch(function () {
-            waitStatus.textContent = "Network issue — retrying…";
-            waitStatus.className = "status err";
+          .catch(function (err) {
+            submitBtn.disabled = false;
+            formStatus.textContent = err.message || "Could not reach server";
+            formStatus.className = "status err";
           });
       }
 
       form.addEventListener("submit", function (e) {
         e.preventDefault();
-        mobileError.classList.remove("show");
-        mobileInput.classList.remove("invalid");
-        formStatus.textContent = "";
-        formStatus.className = "status";
+        sendOtp();
+      });
 
-        var mobile = mobileInput.value.replace(/\D/g, "");
-        if (!validMobile(mobile)) {
-          mobileInput.classList.add("invalid");
-          mobileError.classList.add("show");
+      document.getElementById("resendBtn").addEventListener("click", function () {
+        show("form");
+        formStatus.textContent = "Update details if needed, then send again.";
+        formStatus.className = "status";
+      });
+
+      document.getElementById("retryBtn").addEventListener("click", function () {
+        state = { registrationId: null, email: "", mobile: "" };
+        show("form");
+        formStatus.textContent = "";
+      });
+
+      otpForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        otpError.classList.remove("show");
+        otpInput.classList.remove("invalid");
+        otpStatus.textContent = "";
+        otpStatus.className = "status";
+
+        var otp = otpInput.value.replace(/\D/g, "");
+        if (!/^\d{6}$/.test(otp)) {
+          otpInput.classList.add("invalid");
+          otpError.classList.add("show");
+          return;
+        }
+        if (!state.registrationId) {
+          otpStatus.textContent = "Session missing. Start over.";
+          otpStatus.className = "status err";
           return;
         }
 
-        submitBtn.disabled = true;
-        formStatus.textContent = "Creating verification…";
+        verifyBtn.disabled = true;
+        otpStatus.textContent = "Verifying…";
 
-        api({ action: "register", mobile: mobile })
+        api({ action: "verifyOtp", id: state.registrationId, otp: otp })
           .then(function (body) {
-            submitBtn.disabled = false;
+            verifyBtn.disabled = false;
             if (!body.ok) {
-              formStatus.textContent = body.error || "Could not start verification";
-              formStatus.className = "status err";
+              otpStatus.textContent = body.error || "Verification failed";
+              otpStatus.className = "status err";
               return;
             }
-            state.registrationId = body.registrationId;
-            state.waLink = body.waLink;
-            messageBox.textContent = "VERIFY " + body.token + "\nMobile: " + mobile + "\nID: " + body.registrationId;
-            show("wait");
-            waitStatus.textContent = "Waiting for admin approval…";
-            waitStatus.className = "status";
-            window.open(body.waLink, "_blank");
-            startPoll();
+            otpStatus.textContent = "Verified — redirecting…";
+            otpStatus.className = "status ok";
+            window.location.href = "thank-you.html";
           })
-          .catch(function (err) {
-            submitBtn.disabled = false;
-            formStatus.textContent = err.message || "Could not reach server. Check your connection.";
-            formStatus.className = "status err";
+          .catch(function () {
+            verifyBtn.disabled = false;
+            otpStatus.textContent = "Network error. Try again.";
+            otpStatus.className = "status err";
           });
-      });
-
-      openWaBtn.addEventListener("click", function () {
-        if (state.waLink) window.open(state.waLink, "_blank");
-      });
-
-      retryBtn.addEventListener("click", function () {
-        stopPoll();
-        state = { registrationId: null, waLink: null, pollTimer: null };
-        show("form");
-        formStatus.textContent = "";
       });
     })();
   </script>
