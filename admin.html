@@ -234,16 +234,26 @@
 
       <div id="panel-reset" class="panel">
         <div class="field">
-          <label for="resetCode">Reset code (from email)</label>
-          <input id="resetCode" type="text" inputmode="numeric" maxlength="6" placeholder="••••••" />
+          <label for="resetCode">Reset code (6 digits from email)</label>
+          <input id="resetCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" minlength="6" placeholder="••••••" autocomplete="one-time-code" />
         </div>
+        <button type="button" class="btn" id="verifyCodeBtn">Verify code</button>
+        <button type="button" class="btn secondary" id="backLoginBtn2">Back to login</button>
+        <p class="status" id="resetMsg"></p>
+      </div>
+
+      <div id="panel-newpass" class="panel">
         <div class="field">
           <label for="newPassword">New password</label>
           <input id="newPassword" type="password" autocomplete="new-password" />
         </div>
+        <div class="field">
+          <label for="confirmPassword">Confirm password</label>
+          <input id="confirmPassword" type="password" autocomplete="new-password" />
+        </div>
         <button type="button" class="btn" id="resetBtn">Change password</button>
-        <button type="button" class="btn secondary" id="backLoginBtn2">Back to login</button>
-        <p class="status" id="resetMsg"></p>
+        <button type="button" class="btn secondary" id="backLoginBtn3">Back to login</button>
+        <p class="status" id="newPassMsg"></p>
       </div>
     </section>
 
@@ -369,9 +379,13 @@
       }
 
       function showAuthPanel(name) {
-        ["panel-login", "panel-forgot", "panel-reset"].forEach(function (id) {
+        ["panel-login", "panel-forgot", "panel-reset", "panel-newpass"].forEach(function (id) {
           document.getElementById(id).classList.toggle("active", id === name);
         });
+      }
+
+      function digitsOnly6(el) {
+        el.value = String(el.value || "").replace(/\D/g, "").slice(0, 6);
       }
 
       function orDash(v) {
@@ -541,6 +555,14 @@
         showAuthPanel("panel-login");
         pageSub.textContent = "Admin login";
       });
+      document.getElementById("backLoginBtn3").addEventListener("click", function () {
+        showAuthPanel("panel-login");
+        pageSub.textContent = "Admin login";
+      });
+
+      document.getElementById("resetCode").addEventListener("input", function () {
+        digitsOnly6(this);
+      });
 
       document.getElementById("sendResetBtn").addEventListener("click", function () {
         var msg = document.getElementById("forgotMsg");
@@ -555,8 +577,39 @@
             }
             msg.textContent = body.message || "Check your email for the code.";
             msg.className = "status ok";
+            document.getElementById("resetCode").value = "";
+            document.getElementById("resetMsg").textContent = "";
             showAuthPanel("panel-reset");
-            pageSub.textContent = "Change password";
+            pageSub.textContent = "Enter 6-digit code";
+          })
+          .catch(function () {
+            msg.textContent = "Network error";
+            msg.className = "status err";
+          });
+      });
+
+      document.getElementById("verifyCodeBtn").addEventListener("click", function () {
+        var msg = document.getElementById("resetMsg");
+        var code = String(document.getElementById("resetCode").value || "").replace(/\D/g, "");
+        if (!/^\d{6}$/.test(code)) {
+          msg.textContent = "Enter all 6 digits from the email";
+          msg.className = "status err";
+          return;
+        }
+        msg.textContent = "Verifying…";
+        msg.className = "status";
+        api({ action: "verifyResetCode", code: code })
+          .then(function (body) {
+            if (!body.ok) {
+              msg.textContent = body.error || "Invalid code";
+              msg.className = "status err";
+              return;
+            }
+            document.getElementById("newPassword").value = "";
+            document.getElementById("confirmPassword").value = "";
+            document.getElementById("newPassMsg").textContent = "";
+            showAuthPanel("panel-newpass");
+            pageSub.textContent = "Set new password";
           })
           .catch(function () {
             msg.textContent = "Network error";
@@ -565,13 +618,34 @@
       });
 
       document.getElementById("resetBtn").addEventListener("click", function () {
-        var msg = document.getElementById("resetMsg");
+        var msg = document.getElementById("newPassMsg");
+        var newPassword = document.getElementById("newPassword").value;
+        var confirmPassword = document.getElementById("confirmPassword").value;
+        var code = String(document.getElementById("resetCode").value || "").replace(/\D/g, "");
+
+        if (!/^\d{6}$/.test(code)) {
+          msg.textContent = "Reset code must be 6 digits. Go back and verify again.";
+          msg.className = "status err";
+          return;
+        }
+        if (newPassword.length < 6) {
+          msg.textContent = "New password must be at least 6 characters";
+          msg.className = "status err";
+          return;
+        }
+        if (newPassword !== confirmPassword) {
+          msg.textContent = "New password and confirm password do not match";
+          msg.className = "status err";
+          return;
+        }
+
         msg.textContent = "Updating…";
         msg.className = "status";
         api({
           action: "resetPassword",
-          code: document.getElementById("resetCode").value,
-          newPassword: document.getElementById("newPassword").value
+          code: code,
+          newPassword: newPassword,
+          confirmPassword: confirmPassword
         })
           .then(function (body) {
             if (!body.ok) {

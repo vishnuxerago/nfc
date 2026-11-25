@@ -22,7 +22,7 @@
  * Gmail free quota is limited (about 100 emails/day for consumer Gmail).
  */
 
-var SCRIPT_VERSION = "2026-11-25-forgot-v3";
+var SCRIPT_VERSION = "2026-11-25-forgot-v4";
 var OTP_TTL_MS = 5 * 60 * 1000;
 var RATE_WINDOW_MS = 15 * 60 * 1000;
 var MAX_PER_MOBILE = 3;
@@ -44,6 +44,7 @@ function doPost(e) {
     else if (action === "adminList") result = actionAdminList(data);
     else if (action === "history") result = actionHistory(data);
     else if (action === "forgotPassword") result = actionForgotPassword(data);
+    else if (action === "verifyResetCode") result = actionVerifyResetCode(data);
     else if (action === "resetPassword") result = actionResetPassword(data);
     else if (action === "changePassword") result = actionChangePassword(data);
     else if (action === "health") result = actionHealth();
@@ -281,7 +282,7 @@ function actionForgotPassword(data) {
     sendMail_(
       adminEmail,
       "Admin password reset code",
-      "Your admin password reset code is: " + code + "\n\nIt expires in 10 minutes.\n"
+      "Your admin password reset code is: " + code + "\n\nEnter all 6 digits.\nIt expires in 10 minutes.\n"
     );
   } catch (err) {
     return {
@@ -299,21 +300,46 @@ function actionForgotPassword(data) {
   };
 }
 
+function actionVerifyResetCode(data) {
+  var code = String(data.code || "").replace(/\D/g, "");
+  if (!/^\d{6}$/.test(code)) {
+    return { ok: false, error: "Enter the full 6-digit reset code", scriptVersion: SCRIPT_VERSION };
+  }
+  if (CacheService.getScriptCache().get("admin_reset:" + code) !== "1") {
+    return { ok: false, error: "Invalid or expired reset code", scriptVersion: SCRIPT_VERSION };
+  }
+  return { ok: true, message: "Code verified. Set a new password.", scriptVersion: SCRIPT_VERSION };
+}
+
 function actionResetPassword(data) {
   var code = String(data.code || "").replace(/\D/g, "");
   var newPassword = String(data.newPassword || "");
-  if (!/^\d{6}$/.test(code)) return { ok: false, error: "Enter the 6-digit reset code" };
-  if (newPassword.length < 6) return { ok: false, error: "New password must be at least 6 characters" };
+  var confirmPassword = String(data.confirmPassword || "");
+
+  if (!/^\d{6}$/.test(code)) {
+    return { ok: false, error: "Enter the full 6-digit reset code", scriptVersion: SCRIPT_VERSION };
+  }
+  if (newPassword.length < 6) {
+    return { ok: false, error: "New password must be at least 6 characters", scriptVersion: SCRIPT_VERSION };
+  }
+  if (newPassword !== confirmPassword) {
+    return { ok: false, error: "New password and confirm password do not match", scriptVersion: SCRIPT_VERSION };
+  }
 
   var cache = CacheService.getScriptCache();
   if (cache.get("admin_reset:" + code) !== "1") {
-    return { ok: false, error: "Invalid or expired reset code" };
+    return { ok: false, error: "Invalid or expired reset code", scriptVersion: SCRIPT_VERSION };
+  }
+
+  var current = String(props_().getProperty("ADMIN_PASSWORD") || "");
+  if (newPassword === current) {
+    return { ok: false, error: "New password must be different from the previous password", scriptVersion: SCRIPT_VERSION };
   }
 
   props_().setProperty("ADMIN_PASSWORD", newPassword);
   cache.remove("admin_reset:" + code);
   audit_("", "password_reset", "admin", {});
-  return { ok: true, message: "Password updated. You can log in now." };
+  return { ok: true, message: "Password updated. You can log in now.", scriptVersion: SCRIPT_VERSION };
 }
 
 function actionChangePassword(data) {
