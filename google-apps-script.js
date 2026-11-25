@@ -22,7 +22,7 @@
  * Gmail free quota is limited (about 100 emails/day for consumer Gmail).
  */
 
-var SCRIPT_VERSION = "2026-11-25-forgot-v2";
+var SCRIPT_VERSION = "2026-11-25-forgot-v3";
 var OTP_TTL_MS = 5 * 60 * 1000;
 var RATE_WINDOW_MS = 15 * 60 * 1000;
 var MAX_PER_MOBILE = 3;
@@ -158,7 +158,7 @@ function actionSendOtp(data, e) {
     "If you did not request this, ignore this email.\n";
 
   try {
-    GmailApp.sendEmail(email, subject, body, { name: fromName });
+    sendMail_(email, subject, body, fromName);
   } catch (err) {
     return { ok: false, error: "Could not send email: " + String(err) };
   }
@@ -256,29 +256,47 @@ function actionAdminLogin(data) {
 function actionForgotPassword(data) {
   var adminEmail = String(props_().getProperty("ADMIN_EMAIL") || "").trim().toLowerCase();
   if (!adminEmail) {
-    return { ok: false, error: "ADMIN_EMAIL is not set in Script properties" };
+    return {
+      ok: false,
+      error: "ADMIN_EMAIL is not set in Script properties. Add ADMIN_EMAIL=vishnu.xerago@gmail.com then Deploy → New version.",
+      scriptVersion: SCRIPT_VERSION,
+    };
   }
   var typed = String(data.email || "").trim().toLowerCase();
-  var generic = "If that email is registered as admin, a reset code was sent.";
-  if (!typed || typed !== adminEmail) {
-    return { ok: true, message: generic };
+  if (!typed) {
+    return { ok: false, error: "Enter admin ID (email)", scriptVersion: SCRIPT_VERSION };
+  }
+  if (typed !== adminEmail) {
+    return {
+      ok: false,
+      error: "Admin ID does not match ADMIN_EMAIL in Script properties",
+      scriptVersion: SCRIPT_VERSION,
+    };
   }
 
   var code = randomOtp6_();
   CacheService.getScriptCache().put("admin_reset:" + code, "1", 10 * 60);
 
   try {
-    GmailApp.sendEmail(
+    sendMail_(
       adminEmail,
       "Admin password reset code",
       "Your admin password reset code is: " + code + "\n\nIt expires in 10 minutes.\n"
     );
   } catch (err) {
-    return { ok: false, error: "Could not send reset email: " + String(err) };
+    return {
+      ok: false,
+      error: "Could not send reset email: " + String(err) + " — re-authorize the Web App (Deploy → Manage deployments → Edit → New version) and allow Gmail.",
+      scriptVersion: SCRIPT_VERSION,
+    };
   }
 
   audit_("", "forgot_password", "admin", {});
-  return { ok: true, message: generic };
+  return {
+    ok: true,
+    message: "Reset code sent to " + adminEmail + ". Check Inbox and Spam.",
+    scriptVersion: SCRIPT_VERSION,
+  };
 }
 
 function actionResetPassword(data) {
@@ -366,6 +384,21 @@ function actionHistory(data) {
 }
 
 /* ---------- helpers ---------- */
+
+function sendMail_(to, subject, body, fromName) {
+  var options = fromName ? { name: String(fromName) } : {};
+  try {
+    GmailApp.sendEmail(to, subject, body, options);
+    return;
+  } catch (err1) {
+    try {
+      MailApp.sendEmail(to, subject, body);
+      return;
+    } catch (err2) {
+      throw new Error(String(err1) + " / " + String(err2));
+    }
+  }
+}
 
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);

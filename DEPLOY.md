@@ -42,7 +42,9 @@ You no longer need `BUSINESS_WA_E164` for this email OTP flow.
 3. Who has access: **Anyone**
 4. Authorize **Gmail** + Sheets when Google asks
 5. Copy `/exec` URL into `index.html` and `admin.html` (`APPS_SCRIPT_URL`)
-6. After code changes: **Manage deployments → Edit → New version → Deploy**
+6. After code changes: **Manage deployments → pencil (Edit) → Version: New version → Deploy**  
+   **Save in the editor is NOT enough.** The live `/exec` URL only updates after a New version deploy.  
+   Check: open the `/exec` URL in a browser — the JSON must include `"scriptVersion":"2026-11-25-forgot-v3"`. If that field is missing, the new code is not live.
 
 ### 4. GitHub Pages
 
