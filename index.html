@@ -145,7 +145,6 @@
         </div>
         <button type="submit" id="verifyBtn">Verify</button>
         <button type="button" class="secondary" id="resendBtn">Resend code</button>
-        <button type="button" class="secondary" id="retryBtn">Start over</button>
         <p class="status" id="otpStatus" role="status"></p>
       </form>
     </div>
@@ -277,12 +276,6 @@
         formStatus.textContent = "";
       });
 
-      document.getElementById("retryBtn").addEventListener("click", function () {
-        state = { registrationId: null, email: "", mobile: "", name: "" };
-        show("form");
-        formStatus.textContent = "";
-      });
-
       otpForm.addEventListener("submit", function (e) {
         e.preventDefault();
         otpError.classList.remove("show");
@@ -297,7 +290,7 @@
           return;
         }
         if (!state.registrationId) {
-          otpStatus.textContent = "Session missing. Start over.";
+          otpStatus.textContent = "Session missing. Use Resend code.";
           otpStatus.className = "status err";
           return;
         }
