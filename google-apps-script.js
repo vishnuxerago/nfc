@@ -49,10 +49,24 @@ function doPost(e) {
 }
 
 function doGet() {
-  return json_({
-    ok: true,
-    message: "Email OTP API is live. Use POST with action sendOtp or verifyOtp.",
-  });
+  try {
+    var ss = getSpreadsheet_();
+    return json_({
+      ok: true,
+      message: "Email OTP API is live. Use POST with action sendOtp or verifyOtp.",
+      spreadsheetName: ss.getName(),
+      spreadsheetId: ss.getId(),
+      spreadsheetUrl: ss.getUrl(),
+      registrationsTab: ss.getSheetByName("Registrations") ? true : false,
+      auditTab: ss.getSheetByName("Audit") ? true : false,
+    });
+  } catch (err) {
+    return json_({
+      ok: false,
+      message: "API loaded, but spreadsheet is not linked correctly.",
+      error: String(err),
+    });
+  }
 }
 
 /* ---------- customer actions ---------- */
