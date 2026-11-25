@@ -1,131 +1,106 @@
-# Deploy: Free WhatsApp mobile verification
+# Deploy guide (GitHub Pages + Google Sheet — no Cloudflare)
 
-**Cost: ₹0/month** on Cloudflare free plan + free WhatsApp Business app.  
-No SMS/OTP vendors. Manual admin approval (not automatic WhatsApp reading).
-
----
-
-## What you get
-
-| URL | Purpose |
-|-----|---------|
-| `/` | Customer registration + WhatsApp verify |
-| `/admin.html` | Admin login, approve/reject, history |
-| `/thank-you.html` | Shown after verified |
-
-NFC card should store your Pages URL, e.g. `https://nfc-whatsapp-verify.pages.dev/`
+**Cost: ₹0.** Hosting on GitHub Pages. Data in Google Sheets. WhatsApp Business app for messages. Manual admin approval.
 
 ---
 
-## One-time setup (order)
+## Links after setup
 
-### 1. Install tools
+| Page | URL |
+|------|-----|
+| Customer register | `https://vishnuxerago.github.io/nfc/` |
+| Admin dashboard | `https://vishnuxerago.github.io/nfc/admin.html` |
+| Thank you | `https://vishnuxerago.github.io/nfc/thank-you.html` |
 
-1. Install [Node.js LTS](https://nodejs.org/) (free).
-2. In this project folder:
-
-```bash
-npm install
-```
-
-3. Log in to Cloudflare (free account at [dash.cloudflare.com](https://dash.cloudflare.com)):
-
-```bash
-npx wrangler login
-```
-
-### 2. Create free D1 database
-
-```bash
-npx wrangler d1 create nfc-verify
-```
-
-Copy the `database_id` UUID from the output. Open `wrangler.toml` and replace:
-
-```toml
-database_id = "00000000-0000-0000-0000-000000000000"
-```
-
-with your real id.
-
-Apply the schema:
-
-```bash
-npx wrangler d1 execute nfc-verify --remote --file=migrations/0001_init.sql
-```
-
-### 3. Set secrets (free; stored in Cloudflare)
-
-Use your WhatsApp Business number **digits only with country code** (India example `9198XXXXXXXX` — no `+`):
-
-```bash
-npx wrangler pages secret put BUSINESS_WA_E164 --project-name=nfc-whatsapp-verify
-npx wrangler pages secret put ADMIN_PASSWORD --project-name=nfc-whatsapp-verify
-npx wrangler pages secret put SESSION_SECRET --project-name=nfc-whatsapp-verify
-```
-
-For `SESSION_SECRET`, paste a long random string (e.g. 32+ characters).
-
-> First time: create the Pages project by deploying once (step 4), then set secrets, then redeploy.
-
-### 4. Deploy (free Pages)
-
-```bash
-npx wrangler pages deploy public --project-name=nfc-whatsapp-verify
-```
-
-Open the URL Wrangler prints (ends with `.pages.dev`).
-
-### 5. Local test (optional)
-
-```bash
-copy .dev.vars.example .dev.vars
-# edit .dev.vars with your number + passwords
-
-npx wrangler d1 execute nfc-verify --local --file=migrations/0001_init.sql
-npm run dev
-```
+Write the customer URL on your NFC card.
 
 ---
 
-## Admin workflow
+## Step 1 — Google Sheet (personal Gmail)
 
-1. Customer enters mobile → opens WhatsApp → sends pre-filled `VERIFY …` message.
-2. You receive it in WhatsApp Business and note the **sender number**.
-3. Open `/admin.html` → log in → **Pending**.
-4. Confirm sender matches the listed mobile (optional: paste the token from the chat).
-5. **Approve** or **Reject**.
-6. Customer page auto-updates to verified → thank-you page.
+Use **personal Gmail** in Incognito (not office Outlook).
+
+1. Open [https://sheets.new](https://sheets.new)
+2. Name the spreadsheet `NFC WhatsApp Verify`
+3. Rename the first tab to **Registrations**
+4. Row 1 headers:
+
+`id | mobile | token_hash | status | created_at | expires_at | verified_at | rejected_at | reject_reason`
+
+5. Add a second tab named **Audit** with headers:
+
+`id | registration_id | action | actor | meta | created_at`
+
+(The script can also create these tabs automatically if missing.)
 
 ---
 
-## Security notes
+## Step 2 — Apps Script
 
-- Tokens expire in **5 minutes** and are one-time.
-- DB stores **SHA-256 token hashes**, not plaintext tokens.
-- Rate limits: 3 attempts / number / 15 min; 10 / IP / 15 min.
-- Admin session cookie is HttpOnly.
+1. In the Sheet: **Extensions → Apps Script**
+2. Delete any starter code
+3. Paste everything from `google-apps-script.js` → **Save**
+4. Left sidebar: **Project Settings** (gear) → **Script properties** → **Add script property**:
+
+| Property | Value |
+|----------|--------|
+| `BUSINESS_WA_E164` | Your WhatsApp number digits only, e.g. `919876543210` |
+| `ADMIN_PASSWORD` | A strong password for `/admin.html` |
+
+5. **Deploy → New deployment → Web app**
+   - Execute as: **Me**
+   - Who has access: **Anyone**
+6. Authorize (Advanced → Go to … → Allow)
+7. Copy the **Web app URL** (`…/exec`)
+
+Test: open that URL in Incognito → you should see JSON like `{"ok":true,"message":"..."}`.
 
 ---
 
-## Free-tier limits (not fees)
+## Step 3 — Put the URL in the website files
 
-Cloudflare free Workers/Pages/D1 have daily request and size caps. Fine for small/medium volume. Plans can change; there is no paid subscription required for this design.
+In both files, replace the placeholder:
+
+- `index.html` → `APPS_SCRIPT_URL = "..."`  
+- `admin.html` → `APPS_SCRIPT_URL = "..."`  
+
+Use the same `/exec` URL in both.
+
+---
+
+## Step 4 — GitHub Pages (already on if you used it before)
+
+1. Push these files to `https://github.com/vishnuxerago/nfc`
+2. Repo **Settings → Pages**
+   - Source: **Deploy from a branch**
+   - Branch: **main** / folder: **/ (root)**
+3. Wait 1–2 minutes, then open `https://vishnuxerago.github.io/nfc/`
+
+---
+
+## How staff verifies
+
+1. Customer sends WhatsApp message with `VERIFY …`
+2. You check **sender number** in WhatsApp
+3. Open `admin.html` → log in with `ADMIN_PASSWORD`
+4. Pending list → **Approve** (optional: paste token from chat) or **Reject**
+5. Customer page auto-updates → thank-you screen
 
 ---
 
 ## Test checklist
 
-- [ ] Invalid mobile (e.g. `123`) rejected on the form  
-- [ ] Valid number opens `wa.me` with VERIFY message  
-- [ ] Admin sees pending row  
-- [ ] Approve → customer waiting page redirects to thank-you  
+- [ ] Invalid mobile rejected  
+- [ ] Valid mobile opens WhatsApp with VERIFY text  
+- [ ] Row appears in Sheet / admin Pending  
+- [ ] Approve → customer goes to thank-you  
 - [ ] Reject → customer sees rejected  
-- [ ] Wait 5+ minutes → status expired  
-- [ ] Spam register → rate limit message  
+- [ ] After 5 minutes → expired  
 
 ---
 
-## Legacy
+## Notes
 
-Older GitHub Pages + Google Sheets files are in `legacy/` (archived). Live path is Cloudflare Pages + D1.
+- Tokens are stored as **SHA-256 hashes** (not plain text) in the Sheet.
+- This does **not** auto-read WhatsApp; approval is manual (keeps it free and safe).
+- No Cloudflare / Wrangler / D1 required.

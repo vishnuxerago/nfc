@@ -144,12 +144,41 @@
   </div>
 
   <script>
+    // Same Apps Script /exec URL as index.html
+    var APPS_SCRIPT_URL = "PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+  </script>
+  <script>
     (function () {
+      var TOKEN_KEY = "nfc_admin_token";
       var loginCard = document.getElementById("loginCard");
       var dash = document.getElementById("dash");
       var loginMsg = document.getElementById("loginMsg");
       var list = document.getElementById("list");
       var current = "awaiting_admin";
+
+      function api(payload) {
+        if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf("PASTE_") === 0) {
+          return Promise.reject(new Error("Paste APPS_SCRIPT_URL in admin.html"));
+        }
+        return fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "cors",
+          redirect: "follow",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        }).then(function (r) { return r.json(); });
+      }
+
+      function getToken() {
+        try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; }
+      }
+
+      function setToken(t) {
+        try {
+          if (t) localStorage.setItem(TOKEN_KEY, t);
+          else localStorage.removeItem(TOKEN_KEY);
+        } catch (e) {}
+      }
 
       function showDash(on) {
         loginCard.classList.toggle("hidden", on);
@@ -164,16 +193,15 @@
 
       function loadRegistrations() {
         list.textContent = "Loading…";
-        fetch("/api/admin/registrations?status=" + encodeURIComponent(current), { credentials: "same-origin" })
-          .then(function (r) {
-            if (r.status === 401) {
-              showDash(false);
-              throw new Error("Please log in");
-            }
-            return r.json();
-          })
+        api({ action: "adminList", adminToken: getToken(), status: current })
           .then(function (data) {
-            if (!data.ok) throw new Error(data.error || "Failed");
+            if (!data.ok) {
+              if (/unauth/i.test(data.error || "")) {
+                setToken("");
+                showDash(false);
+              }
+              throw new Error(data.error || "Failed");
+            }
             var rows = data.registrations || [];
             if (!rows.length) {
               list.innerHTML = "<p class='msg'>No registrations in this view.</p>";
@@ -206,16 +234,15 @@
 
       function loadHistory() {
         list.textContent = "Loading…";
-        fetch("/api/admin/history", { credentials: "same-origin" })
-          .then(function (r) {
-            if (r.status === 401) {
-              showDash(false);
-              throw new Error("Please log in");
-            }
-            return r.json();
-          })
+        api({ action: "history", adminToken: getToken() })
           .then(function (data) {
-            if (!data.ok) throw new Error(data.error || "Failed");
+            if (!data.ok) {
+              if (/unauth/i.test(data.error || "")) {
+                setToken("");
+                showDash(false);
+              }
+              throw new Error(data.error || "Failed");
+            }
             var rows = data.history || [];
             if (!rows.length) {
               list.innerHTML = "<p class='msg'>No history yet.</p>";
@@ -245,32 +272,26 @@
       document.getElementById("loginBtn").addEventListener("click", function () {
         loginMsg.textContent = "Signing in…";
         loginMsg.className = "msg";
-        fetch("/api/admin/login", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ password: document.getElementById("password").value })
-        })
-          .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
-          .then(function (res) {
-            if (!res.ok || !res.body.ok) {
-              loginMsg.textContent = (res.body && res.body.error) || "Login failed";
+        api({ action: "adminLogin", password: document.getElementById("password").value })
+          .then(function (body) {
+            if (!body.ok) {
+              loginMsg.textContent = body.error || "Login failed";
               loginMsg.className = "msg err";
               return;
             }
+            setToken(body.adminToken);
             showDash(true);
             refresh();
           })
-          .catch(function () {
-            loginMsg.textContent = "Network error";
+          .catch(function (err) {
+            loginMsg.textContent = err.message || "Network error";
             loginMsg.className = "msg err";
           });
       });
 
       document.getElementById("logoutBtn").addEventListener("click", function () {
-        fetch("/api/admin/logout", { method: "POST", credentials: "same-origin" }).finally(function () {
-          showDash(false);
-        });
+        setToken("");
+        showDash(false);
       });
 
       document.getElementById("refreshBtn").addEventListener("click", refresh);
@@ -292,13 +313,7 @@
         if (e.target.classList.contains("act-approve")) {
           var token = (item.querySelector(".token") || {}).value || "";
           e.target.disabled = true;
-          fetch("/api/admin/approve", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ id: id, token: token || undefined })
-          })
-            .then(function (r) { return r.json(); })
+          api({ action: "approve", adminToken: getToken(), id: id, token: token || undefined })
             .then(function (data) {
               if (!data.ok) alert(data.error || "Approve failed");
               refresh();
@@ -308,13 +323,7 @@
         if (e.target.classList.contains("act-reject")) {
           var reason = prompt("Reject reason (optional)") || "";
           e.target.disabled = true;
-          fetch("/api/admin/reject", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ id: id, reason: reason })
-          })
-            .then(function (r) { return r.json(); })
+          api({ action: "reject", adminToken: getToken(), id: id, reason: reason })
             .then(function (data) {
               if (!data.ok) alert(data.error || "Reject failed");
               refresh();
@@ -323,15 +332,10 @@
         }
       });
 
-      // If session cookie exists, try loading pending
-      fetch("/api/admin/registrations?status=awaiting_admin", { credentials: "same-origin" })
-        .then(function (r) {
-          if (r.ok) {
-            showDash(true);
-            refresh();
-          }
-        })
-        .catch(function () {});
+      if (getToken()) {
+        showDash(true);
+        refresh();
+      }
     })();
   </script>
 </body>

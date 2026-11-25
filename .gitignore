@@ -9,20 +9,19 @@ desktop.ini
 *.swp
 *.swo
 
-# Env / secrets (never commit real webhook URLs you want private)
+# Secrets / local
 .env
 .env.*
 !.env.example
+.dev.vars
 
 # Logs
 *.log
 npm-debug.log*
 
-# Local Netlify
-.netlify/
-
-# Cloudflare / Node
+# Leftover tooling (should not be committed)
 node_modules/
 .wrangler/
-.dev.vars
+.netlify/
 dist/
+package-lock.json

@@ -161,6 +161,10 @@
   </main>
 
   <script>
+    // Paste your Google Apps Script Web App URL (ends with /exec)
+    var APPS_SCRIPT_URL = "PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+  </script>
+  <script>
     (function () {
       var formPanel = document.getElementById("step-form");
       var waitPanel = document.getElementById("step-wait");
@@ -175,6 +179,19 @@
       var messageBox = document.getElementById("messageBox");
 
       var state = { registrationId: null, waLink: null, pollTimer: null };
+
+      function api(payload) {
+        if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf("PASTE_") === 0) {
+          return Promise.reject(new Error("Setup incomplete: paste APPS_SCRIPT_URL in index.html"));
+        }
+        return fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "cors",
+          redirect: "follow",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        }).then(function (r) { return r.json(); });
+      }
 
       function show(panel) {
         formPanel.classList.toggle("active", panel === "form");
@@ -200,8 +217,7 @@
 
       function checkStatus() {
         if (!state.registrationId) return;
-        fetch("/api/status?id=" + encodeURIComponent(state.registrationId), { credentials: "same-origin" })
-          .then(function (r) { return r.json(); })
+        api({ action: "status", id: state.registrationId })
           .then(function (data) {
             if (!data.ok) {
               waitStatus.textContent = data.error || "Could not check status";
@@ -253,31 +269,26 @@
         submitBtn.disabled = true;
         formStatus.textContent = "Creating verification…";
 
-        fetch("/api/register", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ mobile: mobile })
-        })
-          .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
-          .then(function (res) {
+        api({ action: "register", mobile: mobile })
+          .then(function (body) {
             submitBtn.disabled = false;
-            if (!res.ok || !res.body.ok) {
-              formStatus.textContent = (res.body && res.body.error) || "Could not start verification";
+            if (!body.ok) {
+              formStatus.textContent = body.error || "Could not start verification";
               formStatus.className = "status err";
               return;
             }
-            state.registrationId = res.body.registrationId;
-            state.waLink = res.body.waLink;
-            messageBox.textContent = "VERIFY " + res.body.token + "\nMobile: " + mobile + "\nID: " + res.body.registrationId;
+            state.registrationId = body.registrationId;
+            state.waLink = body.waLink;
+            messageBox.textContent = "VERIFY " + body.token + "\nMobile: " + mobile + "\nID: " + body.registrationId;
             show("wait");
             waitStatus.textContent = "Waiting for admin approval…";
             waitStatus.className = "status";
-            window.open(res.body.waLink, "_blank");
+            window.open(body.waLink, "_blank");
             startPoll();
           })
-          .catch(function () {
+          .catch(function (err) {
             submitBtn.disabled = false;
-            formStatus.textContent = "Could not reach server. Check your connection.";
+            formStatus.textContent = err.message || "Could not reach server. Check your connection.";
             formStatus.className = "status err";
           });
       });
