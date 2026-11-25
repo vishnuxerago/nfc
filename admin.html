@@ -588,6 +588,14 @@
           });
       });
 
+      function goToNewPassPanel() {
+        document.getElementById("newPassword").value = "";
+        document.getElementById("confirmPassword").value = "";
+        document.getElementById("newPassMsg").textContent = "";
+        showAuthPanel("panel-newpass");
+        pageSub.textContent = "Set new password";
+      }
+
       document.getElementById("verifyCodeBtn").addEventListener("click", function () {
         var msg = document.getElementById("resetMsg");
         var code = String(document.getElementById("resetCode").value || "").replace(/\D/g, "");
@@ -600,20 +608,21 @@
         msg.className = "status";
         api({ action: "verifyResetCode", code: code })
           .then(function (body) {
-            if (!body.ok) {
-              msg.textContent = body.error || "Invalid code";
-              msg.className = "status err";
+            if (body.ok) {
+              goToNewPassPanel();
               return;
             }
-            document.getElementById("newPassword").value = "";
-            document.getElementById("confirmPassword").value = "";
-            document.getElementById("newPassMsg").textContent = "";
-            showAuthPanel("panel-newpass");
-            pageSub.textContent = "Set new password";
+            // Older deploy has no verifyResetCode — continue; code is checked on Change password
+            if (/unknown action/i.test(body.error || "")) {
+              goToNewPassPanel();
+              return;
+            }
+            msg.textContent = body.error || "Invalid code";
+            msg.className = "status err";
           })
           .catch(function () {
-            msg.textContent = "Network error";
-            msg.className = "status err";
+            // Network quirk: still allow next step; server validates code on password change
+            goToNewPassPanel();
           });
       });
 
