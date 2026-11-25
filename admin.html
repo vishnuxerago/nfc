@@ -52,7 +52,6 @@
       cursor: pointer;
     }
     button.secondary { background: #fff; color: var(--ink); border: 1px solid var(--border); }
-    button:disabled { opacity: 0.6; cursor: wait; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; }
     .row button { width: auto; min-width: 110px; }
     .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -67,15 +66,6 @@
     .msg { color: var(--muted); font-size: 0.9rem; }
     .err { color: var(--danger); }
     .hidden { display: none !important; }
-    .checklist {
-      background: #f0fdfa;
-      border: 1px solid #99f6e4;
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: 0.85rem;
-      margin: 0 0 14px;
-      color: #115e59;
-    }
     .toolbar {
       display: flex;
       justify-content: space-between;
@@ -89,14 +79,14 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.88rem;
-      min-width: 720px;
+      font-size: 0.9rem;
+      min-width: 680px;
     }
     th, td {
       text-align: left;
-      padding: 10px 8px;
+      padding: 12px 10px;
       border-bottom: 1px solid var(--border);
-      vertical-align: top;
+      vertical-align: middle;
     }
     th {
       font-size: 0.75rem;
@@ -104,6 +94,7 @@
       letter-spacing: 0.04em;
       color: var(--muted);
       white-space: nowrap;
+      background: #f8fafc;
     }
     .badge {
       display: inline-block;
@@ -125,7 +116,7 @@
 <body>
   <div class="wrap">
     <h1>Admin dashboard</h1>
-    <p class="sub">All customer registrations — verified and not yet verified. Export the list as XML anytime.</p>
+    <p class="sub">Customer registrations</p>
 
     <section id="loginCard" class="card">
       <label for="password">Admin password</label>
@@ -149,13 +140,9 @@
         <button type="button" data-status="awaiting_otp">Not verified</button>
         <button type="button" data-status="verified">Verified</button>
         <button type="button" data-status="expired">Expired</button>
-        <button type="button" data-status="history">History</button>
       </div>
 
       <div class="card">
-        <div class="checklist">
-          Shows <strong>timestamp</strong>, <strong>name</strong>, <strong>number</strong>, <strong>email</strong>, and whether the customer is <strong>verified</strong> — even if they have not completed OTP yet.
-        </div>
         <p class="count" id="countLabel"></p>
         <div id="list" class="msg">Loading…</div>
       </div>
@@ -177,9 +164,6 @@
       var lastRows = [];
 
       function api(payload) {
-        if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf("PASTE_") === 0) {
-          return Promise.reject(new Error("Paste APPS_SCRIPT_URL in admin.html"));
-        }
         return fetch(APPS_SCRIPT_URL, {
           method: "POST",
           mode: "cors",
@@ -226,18 +210,27 @@
         if (!iso) return "—";
         try {
           var d = new Date(iso);
-          if (isNaN(d.getTime())) return iso;
+          if (isNaN(d.getTime())) return String(iso);
           return d.toLocaleString();
         } catch (e) {
-          return iso;
+          return String(iso);
         }
       }
 
-      function verifiedLabel(status) {
-        if (status === "verified") return { text: "Yes — verified", cls: "badge" };
-        if (status === "awaiting_otp") return { text: "No — awaiting OTP", cls: "badge warn" };
-        if (status === "expired") return { text: "No — expired", cls: "badge bad" };
-        return { text: status || "unknown", cls: "badge bad" };
+      function verifiedCell(row) {
+        if (row.status === "verified") {
+          return (
+            "<span class='badge'>Verified</span>" +
+            (row.verifiedAt ? "<div style='margin-top:6px;color:#64748b;font-size:0.8rem'>" + escapeHtml(formatTime(row.verifiedAt)) + "</div>" : "")
+          );
+        }
+        if (row.status === "awaiting_otp") {
+          return "<span class='badge warn'>Not verified</span>";
+        }
+        if (row.status === "expired") {
+          return "<span class='badge bad'>Expired</span>";
+        }
+        return "<span class='badge bad'>" + escapeHtml(row.status || "—") + "</span>";
       }
 
       function renderTable(rows) {
@@ -247,19 +240,17 @@
           : "";
 
         if (!lastRows.length) {
-          list.innerHTML = "<p class='msg'>No registrations in this view yet.</p>";
+          list.innerHTML = "<p class='msg'>No registrations yet.</p>";
           return;
         }
 
         var body = lastRows.map(function (row) {
-          var v = verifiedLabel(row.status);
           return (
             "<tr>" +
-              "<td>" + escapeHtml(formatTime(row.createdAt)) + "</td>" +
               "<td>" + escapeHtml(row.name || "—") + "</td>" +
               "<td>" + escapeHtml(row.mobile || "—") + "</td>" +
               "<td>" + escapeHtml(row.email || "—") + "</td>" +
-              "<td><span class='" + v.cls + "'>" + escapeHtml(v.text) + "</span></td>" +
+              "<td>" + verifiedCell(row) + "</td>" +
             "</tr>"
           );
         }).join("");
@@ -267,7 +258,6 @@
         list.innerHTML =
           "<div class='table-wrap'><table>" +
             "<thead><tr>" +
-              "<th>Timestamp</th>" +
               "<th>Name</th>" +
               "<th>Number</th>" +
               "<th>Email</th>" +
@@ -298,74 +288,20 @@
           });
       }
 
-      function loadHistory() {
-        lastRows = [];
-        list.textContent = "Loading…";
-        countLabel.textContent = "";
-        api({ action: "history", adminToken: getToken() })
-          .then(function (data) {
-            if (!data.ok) {
-              if (/unauth/i.test(data.error || "")) {
-                setToken("");
-                showDash(false);
-              }
-              throw new Error(data.error || "Failed");
-            }
-            var rows = data.history || [];
-            countLabel.textContent = rows.length ? rows.length + " events" : "";
-            if (!rows.length) {
-              list.innerHTML = "<p class='msg'>No history yet.</p>";
-              return;
-            }
-            list.innerHTML =
-              "<div class='table-wrap'><table>" +
-                "<thead><tr><th>Timestamp</th><th>Action</th><th>Actor</th><th>Registration ID</th></tr></thead>" +
-                "<tbody>" +
-                rows.map(function (h) {
-                  return (
-                    "<tr>" +
-                      "<td>" + escapeHtml(formatTime(h.createdAt)) + "</td>" +
-                      "<td>" + escapeHtml(h.action) + "</td>" +
-                      "<td>" + escapeHtml(h.actor) + "</td>" +
-                      "<td>" + escapeHtml(h.registrationId || "—") + "</td>" +
-                    "</tr>"
-                  );
-                }).join("") +
-                "</tbody></table></div>";
-          })
-          .catch(function (err) {
-            list.innerHTML = "<p class='err'>" + escapeHtml(err.message || "Error") + "</p>";
-          });
-      }
-
-      function refresh() {
-        if (current === "history") loadHistory();
-        else loadRegistrations();
-      }
-
       function exportXml() {
-        if (current === "history") {
-          alert("Switch to All / Not verified / Verified to export registrations.");
-          return;
-        }
         if (!lastRows.length) {
           alert("Nothing to export.");
           return;
         }
-
         var xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-        xml += "<registrations exportedAt=\"" + escapeXml(new Date().toISOString()) + "\" filter=\"" + escapeXml(current) + "\">\n";
+        xml += "<registrations exportedAt=\"" + escapeXml(new Date().toISOString()) + "\">\n";
         lastRows.forEach(function (row) {
-          var verified = row.status === "verified" ? "yes" : "no";
           xml += "  <customer>\n";
-          xml += "    <timestamp>" + escapeXml(row.createdAt || "") + "</timestamp>\n";
           xml += "    <name>" + escapeXml(row.name || "") + "</name>\n";
           xml += "    <number>" + escapeXml(row.mobile || "") + "</number>\n";
           xml += "    <email>" + escapeXml(row.email || "") + "</email>\n";
-          xml += "    <verified>" + verified + "</verified>\n";
-          xml += "    <status>" + escapeXml(row.status || "") + "</status>\n";
+          xml += "    <verified>" + (row.status === "verified" ? "yes" : "no") + "</verified>\n";
           xml += "    <verifiedAt>" + escapeXml(row.verifiedAt || "") + "</verifiedAt>\n";
-          xml += "    <id>" + escapeXml(row.id || "") + "</id>\n";
           xml += "  </customer>\n";
         });
         xml += "</registrations>\n";
@@ -374,7 +310,7 @@
         var url = URL.createObjectURL(blob);
         var a = document.createElement("a");
         a.href = url;
-        a.download = "registrations-" + new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-") + ".xml";
+        a.download = "registrations.xml";
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -393,7 +329,7 @@
             }
             setToken(body.adminToken);
             showDash(true);
-            refresh();
+            loadRegistrations();
           })
           .catch(function (err) {
             loginMsg.textContent = err.message || "Network error";
@@ -407,7 +343,7 @@
         showDash(false);
       });
 
-      document.getElementById("refreshBtn").addEventListener("click", refresh);
+      document.getElementById("refreshBtn").addEventListener("click", loadRegistrations);
       document.getElementById("exportBtn").addEventListener("click", exportXml);
 
       document.getElementById("tabs").addEventListener("click", function (e) {
@@ -417,12 +353,12 @@
         Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function (b) {
           b.classList.toggle("active", b === btn);
         });
-        refresh();
+        loadRegistrations();
       });
 
       if (getToken()) {
         showDash(true);
-        refresh();
+        loadRegistrations();
       }
     })();
   </script>
