@@ -551,9 +551,6 @@
             if (!body.ok) {
               msg.textContent = body.error || "Failed";
               msg.className = "status err";
-              if (/unknown action/i.test(body.error || "")) {
-                msg.textContent = "Forgot password needs a new Apps Script deploy. Open google-apps-script.js → paste into Apps Script → Deploy → Manage deployments → Edit → New version → Deploy. Also set Script property ADMIN_EMAIL=" + ADMIN_EMAIL;
-              }
               return;
             }
             msg.textContent = body.message || "Check your email for the code.";
