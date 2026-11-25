@@ -111,9 +111,14 @@
     <div id="step-form" class="panel active">
       <p class="brand">Registration</p>
       <h1>Verify by email</h1>
-      <p class="lede">Enter your mobile number and email. We’ll send a 6-digit code to your inbox (free Gmail sending).</p>
+      <p class="lede">Enter your name, mobile number, and email. We’ll send a 6-digit code to your inbox.</p>
 
       <form id="reg-form" novalidate>
+        <div class="field">
+          <label for="fullName">Full name</label>
+          <input id="fullName" type="text" maxlength="120" placeholder="Jane Doe" autocomplete="name" required />
+          <p class="error" id="nameError">Please enter your full name.</p>
+        </div>
         <div class="field">
           <label for="mobile">Mobile number</label>
           <div class="phone-row">
@@ -162,9 +167,11 @@
       var otpPanel = document.getElementById("step-otp");
       var form = document.getElementById("reg-form");
       var otpForm = document.getElementById("otp-form");
+      var nameInput = document.getElementById("fullName");
       var mobileInput = document.getElementById("mobile");
       var emailInput = document.getElementById("email");
       var otpInput = document.getElementById("otp");
+      var nameError = document.getElementById("nameError");
       var mobileError = document.getElementById("mobileError");
       var emailError = document.getElementById("emailError");
       var otpError = document.getElementById("otpError");
@@ -174,7 +181,7 @@
       var submitBtn = document.getElementById("submitBtn");
       var verifyBtn = document.getElementById("verifyBtn");
 
-      var state = { registrationId: null, email: "", mobile: "" };
+      var state = { registrationId: null, email: "", mobile: "", name: "" };
 
       function api(payload) {
         if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf("PASTE_") === 0) {
@@ -202,17 +209,30 @@
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
       }
 
+      function validName(v) {
+        var n = String(v || "").replace(/\s+/g, " ").trim();
+        return n.length >= 2 && n.length <= 120;
+      }
+
       function sendOtp() {
+        var name = nameInput.value.replace(/\s+/g, " ").trim();
         var mobile = mobileInput.value.replace(/\D/g, "");
         var email = emailInput.value.trim();
+        nameError.classList.remove("show");
         mobileError.classList.remove("show");
         emailError.classList.remove("show");
+        nameInput.classList.remove("invalid");
         mobileInput.classList.remove("invalid");
         emailInput.classList.remove("invalid");
         formStatus.textContent = "";
         formStatus.className = "status";
 
         var ok = true;
+        if (!validName(name)) {
+          nameInput.classList.add("invalid");
+          nameError.classList.add("show");
+          ok = false;
+        }
         if (!validMobile(mobile)) {
           mobileInput.classList.add("invalid");
           mobileError.classList.add("show");
@@ -228,7 +248,7 @@
         submitBtn.disabled = true;
         formStatus.textContent = "Sending code…";
 
-        api({ action: "sendOtp", mobile: mobile, email: email })
+        api({ action: "sendOtp", name: name, mobile: mobile, email: email })
           .then(function (body) {
             submitBtn.disabled = false;
             if (!body.ok) {
@@ -237,9 +257,10 @@
               return;
             }
             state.registrationId = body.registrationId;
+            state.name = name;
             state.email = email;
             state.mobile = mobile;
-            otpLede.textContent = "We sent a 6-digit code to " + email + ". It expires in 5 minutes. Check spam if needed.";
+            otpLede.textContent = "Hi " + name + " — we sent a 6-digit code to " + email + ". It expires in 5 minutes. Check spam if needed.";
             otpInput.value = "";
             otpStatus.textContent = "";
             show("otp");
@@ -263,7 +284,7 @@
       });
 
       document.getElementById("retryBtn").addEventListener("click", function () {
-        state = { registrationId: null, email: "", mobile: "" };
+        state = { registrationId: null, email: "", mobile: "", name: "" };
         show("form");
         formStatus.textContent = "";
       });

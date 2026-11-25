@@ -209,8 +209,9 @@
             list.innerHTML = rows.map(function (row) {
               return (
                 "<div class='item' data-id='" + row.id + "'>" +
-                  "<p class='mobile'>" + row.mobile + " <span class='" + badgeClass(row.status) + "'>" + row.status + "</span></p>" +
-                  "<p class='meta'>Email: " + (row.email || "—") + "<br>ID: " + row.id +
+                  "<p class='mobile'>" + (row.name || "—") + " <span class='" + badgeClass(row.status) + "'>" + row.status + "</span></p>" +
+                  "<p class='meta'>Mobile: " + row.mobile + "<br>Email: " + (row.email || "—") +
+                  "<br>ID: " + row.id +
                   "<br>Created: " + row.createdAt + "<br>Expires: " + row.expiresAt +
                   (row.verifiedAt ? "<br>Verified: " + row.verifiedAt : "") +
                   "</p>" +

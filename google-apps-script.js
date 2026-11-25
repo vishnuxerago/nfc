@@ -57,6 +57,9 @@ function doGet() {
 /* ---------- customer actions ---------- */
 
 function actionSendOtp(data, e) {
+  var name = normalizeName_(data.name);
+  if (!name) return { ok: false, error: "Enter your full name" };
+
   var mobileInfo = normalizeIndianMobile_(data.mobile);
   if (!mobileInfo) return { ok: false, error: "Enter a valid 10-digit Indian mobile number" };
 
@@ -83,6 +86,7 @@ function actionSendOtp(data, e) {
   ensureSheets_();
   sheetRegistrations_().appendRow([
     id,
+    name,
     mobileInfo.e164,
     email,
     tokenHash,
@@ -95,11 +99,12 @@ function actionSendOtp(data, e) {
     0,
   ]);
 
-  audit_(id, "otp_sent", "system", { mobile: mobileInfo.e164, email: email, ip: ip });
+  audit_(id, "otp_sent", "system", { name: name, mobile: mobileInfo.e164, email: email, ip: ip });
 
   var fromName = props_().getProperty("EMAIL_FROM_NAME") || "Verification";
   var subject = "Your verification code: " + otp;
   var body =
+    "Hi " + name + ",\n\n" +
     "Your verification code is: " + otp + "\n\n" +
     "Mobile: +" + mobileInfo.e164 + "\n" +
     "This code expires in 5 minutes.\n\n" +
@@ -114,6 +119,7 @@ function actionSendOtp(data, e) {
   return {
     ok: true,
     registrationId: id,
+    name: name,
     mobile: mobileInfo.display,
     email: email,
     expiresAt: expiresAt.toISOString(),
@@ -137,22 +143,22 @@ function actionVerifyOtp(data) {
 
   var attempts = Number(row.otp_attempts || 0);
   if (attempts >= MAX_OTP_ATTEMPTS) {
-    sheetRegistrations_().getRange(row.rowNumber, 5).setValue("expired");
+    sheetRegistrations_().getRange(row.rowNumber, 6).setValue("expired");
     audit_(id, "otp_locked", "system", {});
     return { ok: false, error: "Too many wrong attempts. Request a new code." };
   }
 
   var hash = sha256Hex_(otp);
   if (hash !== row.token_hash) {
-    sheetRegistrations_().getRange(row.rowNumber, 11).setValue(attempts + 1);
+    sheetRegistrations_().getRange(row.rowNumber, 12).setValue(attempts + 1);
     audit_(id, "otp_fail", "system", { attempts: attempts + 1 });
     return { ok: false, error: "Incorrect code. Try again." };
   }
 
   var now = new Date().toISOString();
   var sheet = sheetRegistrations_();
-  sheet.getRange(row.rowNumber, 5).setValue("verified");
-  sheet.getRange(row.rowNumber, 8).setValue(now);
+  sheet.getRange(row.rowNumber, 6).setValue("verified");
+  sheet.getRange(row.rowNumber, 9).setValue(now);
   audit_(id, "verified", "system", { method: "email_otp" });
 
   return { ok: true, verifiedAt: now };
@@ -169,6 +175,7 @@ function actionStatus(data) {
   return {
     ok: true,
     registrationId: row.id,
+    name: row.name || null,
     mobile: "+" + row.mobile,
     email: row.email || null,
     status: row.status,
@@ -209,6 +216,7 @@ function actionAdminList(data) {
     if (status !== "all" && row.status !== status) continue;
     out.push({
       id: row.id,
+      name: row.name || "",
       mobile: "+" + row.mobile,
       email: row.email || "",
       status: row.status,
@@ -270,12 +278,12 @@ function sheetRegistrations_() {
   if (!sheet) {
     sheet = ss.insertSheet("Registrations");
     sheet.appendRow([
-      "id", "mobile", "email", "token_hash", "status",
+      "id", "name", "mobile", "email", "token_hash", "status",
       "created_at", "expires_at", "verified_at", "rejected_at", "reject_reason", "otp_attempts",
     ]);
   } else if (sheet.getLastRow() === 0) {
     sheet.appendRow([
-      "id", "mobile", "email", "token_hash", "status",
+      "id", "name", "mobile", "email", "token_hash", "status",
       "created_at", "expires_at", "verified_at", "rejected_at", "reject_reason", "otp_attempts",
     ]);
   }
@@ -303,6 +311,12 @@ function audit_(registrationId, action, actor, meta) {
     meta ? JSON.stringify(meta) : "",
     new Date().toISOString(),
   ]);
+}
+
+function normalizeName_(input) {
+  var name = String(input || "").replace(/\s+/g, " ").trim();
+  if (name.length < 2 || name.length > 120) return null;
+  return name;
 }
 
 function normalizeIndianMobile_(input) {
@@ -369,16 +383,17 @@ function rowFromValues_(r, rowNumber) {
   return {
     rowNumber: rowNumber,
     id: String(r[0] || ""),
-    mobile: String(r[1] || ""),
-    email: String(r[2] || ""),
-    token_hash: String(r[3] || ""),
-    status: String(r[4] || ""),
-    created_at: String(r[5] || ""),
-    expires_at: String(r[6] || ""),
-    verified_at: String(r[7] || ""),
-    rejected_at: String(r[8] || ""),
-    reject_reason: String(r[9] || ""),
-    otp_attempts: r[10] || 0,
+    name: String(r[1] || ""),
+    mobile: String(r[2] || ""),
+    email: String(r[3] || ""),
+    token_hash: String(r[4] || ""),
+    status: String(r[5] || ""),
+    created_at: String(r[6] || ""),
+    expires_at: String(r[7] || ""),
+    verified_at: String(r[8] || ""),
+    rejected_at: String(r[9] || ""),
+    reject_reason: String(r[10] || ""),
+    otp_attempts: r[11] || 0,
   };
 }
 
@@ -394,7 +409,7 @@ function expireIfNeeded_(row) {
   if (!row) return row;
   if (row.status === "verified" || row.status === "expired") return row;
   if (row.status === "awaiting_otp" && new Date(row.expires_at).getTime() <= Date.now()) {
-    sheetRegistrations_().getRange(row.rowNumber, 5).setValue("expired");
+    sheetRegistrations_().getRange(row.rowNumber, 6).setValue("expired");
     audit_(row.id, "expired", "system", {});
     row.status = "expired";
   }
