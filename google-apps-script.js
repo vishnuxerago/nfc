@@ -6,6 +6,7 @@
  * 2. Extensions → Apps Script → paste THIS file → Save.
  * 3. Project Settings → Script properties:
  *      ADMIN_PASSWORD = your-admin-password
+ *      SPREADSHEET_ID = (from the Sheet URL: .../d/THIS_PART/edit)
  *      (optional) EMAIL_FROM_NAME = Your Shop Name
  * 4. Deploy → New deployment → Web app
  *      Execute as: Me
@@ -290,8 +291,25 @@ function ensureSheets_() {
   sheetAudit_();
 }
 
+function getSpreadsheet_() {
+  var id = String(props_().getProperty("SPREADSHEET_ID") || "").trim();
+  var ss = null;
+  if (id) {
+    ss = SpreadsheetApp.openById(id);
+  } else {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  }
+  if (!ss) {
+    throw new Error(
+      "No spreadsheet found. Open Apps Script from your Sheet (Extensions → Apps Script), " +
+      "or set Script property SPREADSHEET_ID to your Sheet ID from the URL."
+    );
+  }
+  return ss;
+}
+
 function sheetRegistrations_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName("Registrations");
   if (!sheet) {
     sheet = ss.insertSheet("Registrations");
@@ -309,7 +327,7 @@ function sheetRegistrations_() {
 }
 
 function sheetAudit_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName("Audit");
   if (!sheet) {
     sheet = ss.insertSheet("Audit");
