@@ -29,6 +29,8 @@
 | Property | Value |
 |----------|--------|
 | `ADMIN_PASSWORD` | Password for `/admin.html` |
+| `ADMIN_EMAIL` | Admin Gmail for forgot-password codes |
+| `SPREADSHEET_ID` | Sheet ID from the spreadsheet URL |
 | `EMAIL_FROM_NAME` | Optional display name, e.g. `My Shop` |
 
 You no longer need `BUSINESS_WA_E164` for this email OTP flow.

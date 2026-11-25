@@ -6,6 +6,7 @@
  * 2. Extensions → Apps Script → paste THIS file → Save.
  * 3. Project Settings → Script properties:
  *      ADMIN_PASSWORD = your-admin-password
+ *      ADMIN_EMAIL = your-admin@gmail.com   (for forgot-password codes)
  *      SPREADSHEET_ID = (from the Sheet URL: .../d/THIS_PART/edit)
  *      (optional) EMAIL_FROM_NAME = Your Shop Name
  * 4. Deploy → New deployment → Web app
@@ -15,7 +16,8 @@
  * 6. Paste the /exec URL into index.html and admin.html (APPS_SCRIPT_URL).
  *
  * POST body (text/plain JSON):
- *   { "action": "sendOtp"|"verifyOtp"|"status"|"adminLogin"|"adminList"|"history", ... }
+ *   { "action": "sendOtp"|"verifyOtp"|"status"|"adminLogin"|"adminList"|"history"|
+ *              "forgotPassword"|"resetPassword"|"changePassword", ... }
  *
  * Gmail free quota is limited (about 100 emails/day for consumer Gmail).
  */
@@ -40,6 +42,9 @@ function doPost(e) {
     else if (action === "adminLogin") result = actionAdminLogin(data);
     else if (action === "adminList") result = actionAdminList(data);
     else if (action === "history") result = actionHistory(data);
+    else if (action === "forgotPassword") result = actionForgotPassword(data);
+    else if (action === "resetPassword") result = actionResetPassword(data);
+    else if (action === "changePassword") result = actionChangePassword(data);
     else result = { ok: false, error: "Unknown action" };
 
     return json_(result);
@@ -222,6 +227,65 @@ function actionAdminLogin(data) {
   var token = randomId_() + randomId_();
   CacheService.getScriptCache().put("admin:" + token, "1", ADMIN_TOKEN_TTL_SEC);
   return { ok: true, adminToken: token };
+}
+
+function actionForgotPassword(data) {
+  var adminEmail = String(props_().getProperty("ADMIN_EMAIL") || "").trim().toLowerCase();
+  if (!adminEmail) {
+    return { ok: false, error: "ADMIN_EMAIL is not set in Script properties" };
+  }
+  var typed = String(data.email || "").trim().toLowerCase();
+  var generic = "If that email is registered as admin, a reset code was sent.";
+  if (!typed || typed !== adminEmail) {
+    return { ok: true, message: generic };
+  }
+
+  var code = randomOtp6_();
+  CacheService.getScriptCache().put("admin_reset:" + code, "1", 10 * 60);
+
+  try {
+    GmailApp.sendEmail(
+      adminEmail,
+      "Admin password reset code",
+      "Your admin password reset code is: " + code + "\n\nIt expires in 10 minutes.\n"
+    );
+  } catch (err) {
+    return { ok: false, error: "Could not send reset email: " + String(err) };
+  }
+
+  audit_("", "forgot_password", "admin", {});
+  return { ok: true, message: generic };
+}
+
+function actionResetPassword(data) {
+  var code = String(data.code || "").replace(/\D/g, "");
+  var newPassword = String(data.newPassword || "");
+  if (!/^\d{6}$/.test(code)) return { ok: false, error: "Enter the 6-digit reset code" };
+  if (newPassword.length < 6) return { ok: false, error: "New password must be at least 6 characters" };
+
+  var cache = CacheService.getScriptCache();
+  if (cache.get("admin_reset:" + code) !== "1") {
+    return { ok: false, error: "Invalid or expired reset code" };
+  }
+
+  props_().setProperty("ADMIN_PASSWORD", newPassword);
+  cache.remove("admin_reset:" + code);
+  audit_("", "password_reset", "admin", {});
+  return { ok: true, message: "Password updated. You can log in now." };
+}
+
+function actionChangePassword(data) {
+  if (!requireAdmin_(data.adminToken)) return { ok: false, error: "Unauthorized" };
+
+  var current = props_().getProperty("ADMIN_PASSWORD");
+  var oldPassword = String(data.oldPassword || "");
+  var newPassword = String(data.newPassword || "");
+  if (oldPassword !== String(current || "")) return { ok: false, error: "Current password is incorrect" };
+  if (newPassword.length < 6) return { ok: false, error: "New password must be at least 6 characters" };
+
+  props_().setProperty("ADMIN_PASSWORD", newPassword);
+  audit_("", "password_changed", "admin", {});
+  return { ok: true, message: "Password changed." };
 }
 
 function actionAdminList(data) {

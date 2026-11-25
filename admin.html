@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0f766e" />
-  <title>Admin · Registration</title>
+  <title>Admin login · Registration</title>
   <style>
     :root {
       --bg: #f0fdfa;
@@ -43,13 +43,19 @@
       padding: 28px 22px 24px;
     }
     .brand {
-      margin: 0 0 22px;
+      margin: 0 0 8px;
       text-align: center;
       font-size: 2rem;
       line-height: 1.15;
       letter-spacing: -0.02em;
       color: var(--brand);
       font-weight: 800;
+    }
+    .sub {
+      margin: 0 0 22px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
     }
     label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
     .field { margin-bottom: 16px; }
@@ -79,12 +85,23 @@
       background: #fff;
       color: var(--brand-dark);
       border: 1.5px solid var(--border);
+      margin-top: 10px;
+    }
+    button.linkish {
+      background: none;
+      border: none;
+      color: var(--brand);
+      padding: 8px 0 0;
+      font-weight: 600;
+      text-decoration: underline;
+      cursor: pointer;
     }
     button:disabled { opacity: 0.65; cursor: wait; }
     .status { margin-top: 14px; font-size: 0.88rem; text-align: center; color: var(--muted); min-height: 1.2em; }
     .status.err { color: var(--danger); }
     .status.ok { color: var(--brand-dark); }
     .hidden { display: none !important; }
+    .login-wrap { max-width: 420px; margin: 0 auto; }
     .toolbar {
       display: flex;
       justify-content: space-between;
@@ -93,13 +110,9 @@
       margin-bottom: 14px;
       flex-wrap: wrap;
     }
-    .toolbar h2 {
-      margin: 0;
-      font-size: 1.1rem;
-      color: var(--ink);
-    }
+    .toolbar h2 { margin: 0; font-size: 1.1rem; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; }
-    .row button { width: auto; min-width: 110px; }
+    .row button { width: auto; min-width: 110px; margin-top: 0; }
     .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
     .tabs button {
       width: auto;
@@ -108,6 +121,7 @@
       border: 1.5px solid var(--border);
       font-weight: 700;
       padding: 10px 14px;
+      margin-top: 0;
     }
     .tabs button.active {
       background: var(--brand);
@@ -115,13 +129,8 @@
       border-color: var(--brand);
     }
     .count { font-size: 0.85rem; color: var(--muted); margin: 0 0 10px; text-align: center; }
-    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.9rem;
-      min-width: 680px;
-    }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 680px; }
     th, td {
       text-align: left;
       padding: 12px 10px;
@@ -133,7 +142,6 @@
       text-transform: uppercase;
       letter-spacing: 0.04em;
       color: var(--muted);
-      white-space: nowrap;
       background: #f0fdfa;
     }
     .badge {
@@ -150,30 +158,77 @@
     }
     .badge.warn { background: #fff7ed; color: #c2410c; }
     .badge.bad { background: #fef2f2; color: var(--danger); }
-    .login-wrap { max-width: 420px; margin: 0 auto; }
+    .panel { display: none; }
+    .panel.active { display: block; }
   </style>
 </head>
 <body>
   <main class="sheet">
     <p class="brand">Registration</p>
+    <p class="sub" id="pageSub">Admin login</p>
 
+    <!-- LOGIN -->
     <section id="loginCard" class="login-wrap">
-      <div class="field">
-        <label for="password">Admin password</label>
-        <input id="password" type="password" autocomplete="current-password" />
+      <div id="panel-login" class="panel active">
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" type="password" autocomplete="current-password" />
+        </div>
+        <button type="button" id="loginBtn">Log in</button>
+        <button type="button" class="linkish" id="showForgotBtn">Forgot password?</button>
+        <p class="status" id="loginMsg"></p>
       </div>
-      <button type="button" id="loginBtn">Log in</button>
-      <p class="status" id="loginMsg"></p>
+
+      <div id="panel-forgot" class="panel">
+        <div class="field">
+          <label for="forgotEmail">Admin email</label>
+          <input id="forgotEmail" type="email" placeholder="you@gmail.com" />
+        </div>
+        <button type="button" id="sendResetBtn">Send reset code</button>
+        <button type="button" class="secondary" id="backLoginBtn1">Back to login</button>
+        <p class="status" id="forgotMsg"></p>
+      </div>
+
+      <div id="panel-reset" class="panel">
+        <div class="field">
+          <label for="resetCode">Reset code (from email)</label>
+          <input id="resetCode" type="text" inputmode="numeric" maxlength="6" placeholder="••••••" />
+        </div>
+        <div class="field">
+          <label for="newPassword">New password</label>
+          <input id="newPassword" type="password" autocomplete="new-password" />
+        </div>
+        <button type="button" id="resetBtn">Set new password</button>
+        <button type="button" class="secondary" id="backLoginBtn2">Back to login</button>
+        <p class="status" id="resetMsg"></p>
+      </div>
     </section>
 
+    <!-- DASHBOARD -->
     <section id="dash" class="hidden">
       <div class="toolbar">
         <h2>Registrations</h2>
         <div class="row">
-          <button type="button" class="secondary" id="exportBtn">Export XML</button>
+          <button type="button" class="secondary" id="exportCsvBtn">Export CSV (Sheets)</button>
+          <button type="button" class="secondary" id="exportXmlBtn">Export XML</button>
+          <button type="button" class="secondary" id="showChangeBtn">Change password</button>
           <button type="button" class="secondary" id="refreshBtn">Refresh</button>
           <button type="button" class="secondary" id="logoutBtn">Log out</button>
         </div>
+      </div>
+
+      <div id="changeBox" class="login-wrap hidden" style="margin-bottom:18px">
+        <div class="field">
+          <label for="oldPass">Current password</label>
+          <input id="oldPass" type="password" />
+        </div>
+        <div class="field">
+          <label for="newPass2">New password</label>
+          <input id="newPass2" type="password" />
+        </div>
+        <button type="button" id="changeBtn">Update password</button>
+        <button type="button" class="secondary" id="hideChangeBtn">Cancel</button>
+        <p class="status" id="changeMsg"></p>
       </div>
 
       <div class="tabs" id="tabs">
@@ -196,7 +251,7 @@
       var TOKEN_KEY = "nfc_admin_token";
       var loginCard = document.getElementById("loginCard");
       var dash = document.getElementById("dash");
-      var loginMsg = document.getElementById("loginMsg");
+      var pageSub = document.getElementById("pageSub");
       var list = document.getElementById("list");
       var countLabel = document.getElementById("countLabel");
       var current = "all";
@@ -215,7 +270,6 @@
       function getToken() {
         try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; }
       }
-
       function setToken(t) {
         try {
           if (t) localStorage.setItem(TOKEN_KEY, t);
@@ -226,44 +280,42 @@
       function showDash(on) {
         loginCard.classList.toggle("hidden", on);
         dash.classList.toggle("hidden", !on);
+        pageSub.textContent = on ? "Admin dashboard" : "Admin login";
+      }
+
+      function showAuthPanel(name) {
+        ["panel-login", "panel-forgot", "panel-reset"].forEach(function (id) {
+          document.getElementById(id).classList.toggle("active", id === name);
+        });
       }
 
       function escapeHtml(s) {
         return String(s == null ? "" : s)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;");
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
       }
-
       function escapeXml(s) {
         return String(s == null ? "" : s)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&apos;");
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
       }
-
+      function csvCell(s) {
+        var v = String(s == null ? "" : s);
+        if (/[",\n]/.test(v)) return '"' + v.replace(/"/g, '""') + '"';
+        return v;
+      }
       function formatTime(iso) {
-        if (!iso) return "—";
+        if (!iso) return "";
         try {
           var d = new Date(iso);
-          if (isNaN(d.getTime())) return String(iso);
-          return d.toLocaleString();
-        } catch (e) {
-          return String(iso);
-        }
+          return isNaN(d.getTime()) ? String(iso) : d.toLocaleString();
+        } catch (e) { return String(iso); }
       }
 
       function verifiedCell(row) {
         if (row.status === "verified") {
-          return (
-            "<span class='badge'>Verified</span>" +
-            (row.verifiedAt
-              ? "<div style='margin-top:6px;color:#5b7c78;font-size:0.8rem'>" + escapeHtml(formatTime(row.verifiedAt)) + "</div>"
-              : "")
-          );
+          return "<span class='badge'>Verified</span>" +
+            (row.verifiedAt ? "<div style='margin-top:6px;color:#5b7c78;font-size:0.8rem'>" + escapeHtml(formatTime(row.verifiedAt)) + "</div>" : "");
         }
         if (row.status === "awaiting_otp") return "<span class='badge warn'>Not verified</span>";
         if (row.status === "expired") return "<span class='badge bad'>Expired</span>";
@@ -272,33 +324,21 @@
 
       function renderTable(rows) {
         lastRows = rows || [];
-        countLabel.textContent = lastRows.length
-          ? lastRows.length + " registration" + (lastRows.length === 1 ? "" : "s")
-          : "";
-
+        countLabel.textContent = lastRows.length ? lastRows.length + " registration" + (lastRows.length === 1 ? "" : "s") : "";
         if (!lastRows.length) {
           list.innerHTML = "<p class='status'>No registrations yet.</p>";
           return;
         }
-
-        var body = lastRows.map(function (row) {
-          return (
-            "<tr>" +
-              "<td>" + escapeHtml(row.name || "—") + "</td>" +
-              "<td>" + escapeHtml(row.mobile || "—") + "</td>" +
-              "<td>" + escapeHtml(row.email || "—") + "</td>" +
-              "<td>" + verifiedCell(row) + "</td>" +
-            "</tr>"
-          );
-        }).join("");
-
         list.innerHTML =
-          "<div class='table-wrap'><table>" +
-            "<thead><tr>" +
-              "<th>Name</th><th>Number</th><th>Email</th><th>Verified</th>" +
-            "</tr></thead>" +
-            "<tbody>" + body + "</tbody>" +
-          "</table></div>";
+          "<div class='table-wrap'><table><thead><tr>" +
+          "<th>Name</th><th>Number</th><th>Email</th><th>Verified</th>" +
+          "</tr></thead><tbody>" +
+          lastRows.map(function (row) {
+            return "<tr><td>" + escapeHtml(row.name || "—") + "</td><td>" +
+              escapeHtml(row.mobile || "—") + "</td><td>" +
+              escapeHtml(row.email || "—") + "</td><td>" + verifiedCell(row) + "</td></tr>";
+          }).join("") +
+          "</tbody></table></div>";
       }
 
       function loadRegistrations() {
@@ -307,26 +347,47 @@
         api({ action: "adminList", adminToken: getToken(), status: current })
           .then(function (data) {
             if (!data.ok) {
-              if (/unauth/i.test(data.error || "")) {
-                setToken("");
-                showDash(false);
-              }
+              if (/unauth/i.test(data.error || "")) { setToken(""); showDash(false); }
               throw new Error(data.error || "Failed");
             }
             renderTable(data.registrations || []);
           })
           .catch(function (err) {
             lastRows = [];
-            countLabel.textContent = "";
             list.innerHTML = "<p class='status err'>" + escapeHtml(err.message || "Error") + "</p>";
           });
       }
 
+      function download(filename, text, type) {
+        var blob = new Blob([text], { type: type });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function exportCsv() {
+        if (!lastRows.length) return alert("Nothing to export.");
+        // UTF-8 BOM helps Excel/Sheets open accents correctly
+        var csv = "\uFEFFName,Number,Email,Verified,VerifiedAt\n";
+        lastRows.forEach(function (row) {
+          csv += [
+            csvCell(row.name || ""),
+            csvCell(row.mobile || ""),
+            csvCell(row.email || ""),
+            csvCell(row.status === "verified" ? "yes" : "no"),
+            csvCell(row.verifiedAt || "")
+          ].join(",") + "\n";
+        });
+        download("registrations.csv", csv, "text/csv;charset=utf-8");
+      }
+
       function exportXml() {
-        if (!lastRows.length) {
-          alert("Nothing to export.");
-          return;
-        }
+        if (!lastRows.length) return alert("Nothing to export.");
         var xml = '<?xml version="1.0" encoding="UTF-8"?>\n<registrations>\n';
         lastRows.forEach(function (row) {
           xml += "  <customer>\n";
@@ -338,26 +399,18 @@
           xml += "  </customer>\n";
         });
         xml += "</registrations>\n";
-
-        var blob = new Blob([xml], { type: "application/xml;charset=utf-8" });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement("a");
-        a.href = url;
-        a.download = "registrations.xml";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+        download("registrations.xml", xml, "application/xml;charset=utf-8");
       }
 
       document.getElementById("loginBtn").addEventListener("click", function () {
-        loginMsg.textContent = "Signing in…";
-        loginMsg.className = "status";
+        var msg = document.getElementById("loginMsg");
+        msg.textContent = "Signing in…";
+        msg.className = "status";
         api({ action: "adminLogin", password: document.getElementById("password").value })
           .then(function (body) {
             if (!body.ok) {
-              loginMsg.textContent = body.error || "Login failed";
-              loginMsg.className = "status err";
+              msg.textContent = body.error || "Login failed";
+              msg.className = "status err";
               return;
             }
             setToken(body.adminToken);
@@ -365,8 +418,97 @@
             loadRegistrations();
           })
           .catch(function (err) {
-            loginMsg.textContent = err.message || "Network error";
-            loginMsg.className = "status err";
+            msg.textContent = err.message || "Network error";
+            msg.className = "status err";
+          });
+      });
+
+      document.getElementById("showForgotBtn").addEventListener("click", function () {
+        showAuthPanel("panel-forgot");
+      });
+      document.getElementById("backLoginBtn1").addEventListener("click", function () {
+        showAuthPanel("panel-login");
+      });
+      document.getElementById("backLoginBtn2").addEventListener("click", function () {
+        showAuthPanel("panel-login");
+      });
+
+      document.getElementById("sendResetBtn").addEventListener("click", function () {
+        var msg = document.getElementById("forgotMsg");
+        msg.textContent = "Sending…";
+        msg.className = "status";
+        api({ action: "forgotPassword", email: document.getElementById("forgotEmail").value })
+          .then(function (body) {
+            if (!body.ok) {
+              msg.textContent = body.error || "Failed";
+              msg.className = "status err";
+              return;
+            }
+            msg.textContent = body.message || "Check your email for the code.";
+            msg.className = "status ok";
+            showAuthPanel("panel-reset");
+          })
+          .catch(function () {
+            msg.textContent = "Network error";
+            msg.className = "status err";
+          });
+      });
+
+      document.getElementById("resetBtn").addEventListener("click", function () {
+        var msg = document.getElementById("resetMsg");
+        msg.textContent = "Updating…";
+        msg.className = "status";
+        api({
+          action: "resetPassword",
+          code: document.getElementById("resetCode").value,
+          newPassword: document.getElementById("newPassword").value
+        })
+          .then(function (body) {
+            if (!body.ok) {
+              msg.textContent = body.error || "Failed";
+              msg.className = "status err";
+              return;
+            }
+            msg.textContent = body.message || "Password updated.";
+            msg.className = "status ok";
+            showAuthPanel("panel-login");
+            document.getElementById("loginMsg").textContent = "Password updated. Log in with the new password.";
+            document.getElementById("loginMsg").className = "status ok";
+          })
+          .catch(function () {
+            msg.textContent = "Network error";
+            msg.className = "status err";
+          });
+      });
+
+      document.getElementById("showChangeBtn").addEventListener("click", function () {
+        document.getElementById("changeBox").classList.remove("hidden");
+      });
+      document.getElementById("hideChangeBtn").addEventListener("click", function () {
+        document.getElementById("changeBox").classList.add("hidden");
+      });
+      document.getElementById("changeBtn").addEventListener("click", function () {
+        var msg = document.getElementById("changeMsg");
+        msg.textContent = "Updating…";
+        msg.className = "status";
+        api({
+          action: "changePassword",
+          adminToken: getToken(),
+          oldPassword: document.getElementById("oldPass").value,
+          newPassword: document.getElementById("newPass2").value
+        })
+          .then(function (body) {
+            if (!body.ok) {
+              msg.textContent = body.error || "Failed";
+              msg.className = "status err";
+              return;
+            }
+            msg.textContent = body.message || "Password changed.";
+            msg.className = "status ok";
+          })
+          .catch(function () {
+            msg.textContent = "Network error";
+            msg.className = "status err";
           });
       });
 
@@ -374,10 +516,11 @@
         setToken("");
         lastRows = [];
         showDash(false);
+        showAuthPanel("panel-login");
       });
-
       document.getElementById("refreshBtn").addEventListener("click", loadRegistrations);
-      document.getElementById("exportBtn").addEventListener("click", exportXml);
+      document.getElementById("exportCsvBtn").addEventListener("click", exportCsv);
+      document.getElementById("exportXmlBtn").addEventListener("click", exportXml);
 
       document.getElementById("tabs").addEventListener("click", function (e) {
         var btn = e.target.closest("button[data-status]");
