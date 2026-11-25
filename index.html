@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0f766e" />
-  <title>Email verification</title>
+  <title>Registration</title>
   <style>
     :root {
       --bg: #f0fdfa;
@@ -42,15 +42,16 @@
       padding: 28px 22px 24px;
     }
     .brand {
-      font-size: 0.75rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      margin: 0 0 22px;
+      text-align: center;
+      font-size: 2rem;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
       color: var(--brand);
-      font-weight: 700;
-      margin: 0 0 8px;
+      font-weight: 800;
     }
-    h1 { margin: 0 0 8px; font-size: 1.5rem; line-height: 1.25; }
-    .lede { margin: 0 0 22px; color: var(--muted); font-size: 0.95rem; line-height: 1.45; }
+    h1 { margin: 0 0 8px; font-size: 1.35rem; line-height: 1.25; text-align: center; }
+    .lede { margin: 0 0 22px; color: var(--muted); font-size: 0.95rem; line-height: 1.45; text-align: center; }
     label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
     .field { margin-bottom: 16px; }
     .phone-row { display: grid; grid-template-columns: 72px 1fr; gap: 8px; }
@@ -77,9 +78,7 @@
       font-weight: 700;
       color: var(--brand-dark);
     }
-    .hint, .error { font-size: 0.8rem; margin: 6px 0 0; line-height: 1.35; }
-    .hint { color: var(--muted); }
-    .error { color: var(--danger); display: none; }
+    .error { font-size: 0.8rem; margin: 6px 0 0; line-height: 1.35; color: var(--danger); display: none; }
     .error.show { display: block; }
     button {
       border: none;
@@ -102,7 +101,6 @@
     .status.ok { color: var(--brand-dark); }
     .panel { display: none; }
     .panel.active { display: block; }
-    .footer-note { margin-top: 18px; text-align: center; font-size: 0.75rem; color: #94a3b8; }
     #otp { letter-spacing: 0.35em; font-size: 1.25rem; text-align: center; font-weight: 700; }
   </style>
 </head>
@@ -123,13 +121,12 @@
             <div class="prefix">+91</div>
             <input id="mobile" type="tel" inputmode="numeric" maxlength="10" placeholder="9876543210" autocomplete="tel-national" required />
           </div>
-          <p class="hint">10 digits starting with 6–9.</p>
-          <p class="error" id="mobileError">Enter a valid 10-digit Indian mobile number.</p>
+          <p class="error" id="mobileError">This number was not correct</p>
         </div>
         <div class="field">
           <label for="email">Email</label>
           <input id="email" type="email" placeholder="you@gmail.com" autocomplete="email" required />
-          <p class="error" id="emailError">Enter a valid email address.</p>
+          <p class="error" id="emailError">Use a valid @gmail.com address</p>
         </div>
         <button type="submit" id="submitBtn">Verify</button>
         <p class="status" id="formStatus" role="status"></p>
@@ -137,8 +134,8 @@
     </div>
 
     <div id="step-otp" class="panel">
-      <p class="brand">Enter code</p>
-      <h1>Check your email</h1>
+      <p class="brand">Registration</p>
+      <h1>Enter code</h1>
       <p class="lede" id="otpLede">We sent a 6-digit code. It expires in 5 minutes.</p>
       <form id="otp-form" novalidate>
         <div class="field">
@@ -152,7 +149,6 @@
         <p class="status" id="otpStatus" role="status"></p>
       </form>
     </div>
-
   </main>
 
   <script>
@@ -181,9 +177,6 @@
       var state = { registrationId: null, email: "", mobile: "", name: "" };
 
       function api(payload) {
-        if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf("PASTE_") === 0) {
-          return Promise.reject(new Error("Setup incomplete: paste APPS_SCRIPT_URL"));
-        }
         return fetch(APPS_SCRIPT_URL, {
           method: "POST",
           mode: "cors",
@@ -203,7 +196,7 @@
       }
 
       function validEmail(v) {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
+        return /^[a-z0-9._%+-]+@gmail\.com$/i.test(String(v || "").trim());
       }
 
       function validName(v) {
@@ -214,7 +207,7 @@
       function sendOtp() {
         var name = nameInput.value.replace(/\s+/g, " ").trim();
         var mobile = mobileInput.value.replace(/\D/g, "");
-        var email = emailInput.value.trim();
+        var email = emailInput.value.trim().toLowerCase();
         nameError.classList.remove("show");
         mobileError.classList.remove("show");
         emailError.classList.remove("show");
@@ -250,7 +243,7 @@
             submitBtn.disabled = false;
             if (!body.ok) {
               if (body.alreadyRegistered) {
-                formStatus.textContent = "Already registered with this number";
+                formStatus.textContent = "Already registered";
                 formStatus.className = "status err";
                 return;
               }
@@ -262,7 +255,7 @@
             state.name = name;
             state.email = email;
             state.mobile = mobile;
-            otpLede.textContent = "Hi " + name + " — we sent a 6-digit code to " + email + ". It expires in 5 minutes. Check spam if needed.";
+            otpLede.textContent = "We sent a 6-digit code to " + email + ". It expires in 5 minutes.";
             otpInput.value = "";
             otpStatus.textContent = "";
             show("otp");
@@ -281,8 +274,7 @@
 
       document.getElementById("resendBtn").addEventListener("click", function () {
         show("form");
-        formStatus.textContent = "Update details if needed, then send again.";
-        formStatus.className = "status";
+        formStatus.textContent = "";
       });
 
       document.getElementById("retryBtn").addEventListener("click", function () {

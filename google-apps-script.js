@@ -79,24 +79,17 @@ function actionSendOtp(data, e) {
   if (!mobileInfo) return { ok: false, error: "Enter a valid 10-digit Indian mobile number" };
 
   var email = normalizeEmail_(data.email);
-  if (!email) return { ok: false, error: "Enter a valid email address" };
+  if (!email) return { ok: false, error: "Use a valid @gmail.com address" };
 
   ensureSheets_();
 
-  var existing = findVerifiedByMobile_(mobileInfo.e164);
-  if (existing) {
+  var existingMobile = findVerifiedByMobile_(mobileInfo.e164);
+  var existingEmail = findVerifiedByEmail_(email);
+  if (existingMobile || existingEmail) {
     return {
       ok: false,
       alreadyRegistered: true,
       error: "Already registered",
-      registration: {
-        name: existing.name || "",
-        mobile: "+" + existing.mobile,
-        email: existing.email || "",
-        status: existing.status,
-        verifiedAt: existing.verified_at || null,
-        createdAt: existing.created_at || null,
-      },
     };
   }
 
@@ -379,7 +372,8 @@ function normalizeIndianMobile_(input) {
 
 function normalizeEmail_(input) {
   var email = String(input || "").trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  // Gmail only
+  if (!/^[a-z0-9._%+-]+@gmail\.com$/.test(email)) return null;
   return email;
 }
 
@@ -510,10 +504,21 @@ function findVerifiedByMobile_(e164) {
     if (!row.id) continue;
     if (String(row.mobile) !== String(e164)) continue;
     row = expireIfNeeded_(row);
-    if (row.status === "verified") {
-      found = row;
-      // keep scanning so the latest verified row wins
-    }
+    if (row.status === "verified") found = row;
+  }
+  return found;
+}
+
+function findVerifiedByEmail_(email) {
+  var want = String(email || "").toLowerCase();
+  var values = sheetRegistrations_().getDataRange().getValues();
+  var found = null;
+  for (var i = 1; i < values.length; i++) {
+    var row = rowFromValues_(values[i], i + 1);
+    if (!row.id) continue;
+    if (String(row.email || "").toLowerCase() !== want) continue;
+    row = expireIfNeeded_(row);
+    if (row.status === "verified") found = row;
   }
   return found;
 }
