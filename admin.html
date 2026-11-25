@@ -42,7 +42,7 @@
     }
     .brand {
       margin: 0 0 8px;
-      text-align: left;
+      text-align: center;
       font-size: 2rem;
       line-height: 1.15;
       letter-spacing: -0.02em;
@@ -50,10 +50,18 @@
       font-weight: 800;
     }
     .sub {
-      margin: 0 0 22px;
-      text-align: left;
+      margin: 0 0 6px;
+      text-align: center;
       color: var(--muted);
       font-size: 0.95rem;
+    }
+    .admin-id {
+      margin: 0 0 22px;
+      text-align: center;
+      color: var(--brand-dark);
+      font-size: 0.92rem;
+      font-weight: 600;
+      word-break: break-all;
     }
     label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; text-align: left; }
     .field { margin-bottom: 16px; }
@@ -96,14 +104,16 @@
       text-decoration: underline;
       cursor: pointer;
       width: auto;
-      text-align: left;
+      display: block;
+      margin: 8px auto 0;
+      text-align: center;
     }
     .btn:disabled, .icon-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-    .status { margin-top: 14px; font-size: 0.88rem; text-align: left; color: var(--muted); min-height: 1.2em; }
+    .status { margin-top: 14px; font-size: 0.88rem; text-align: center; color: var(--muted); min-height: 1.2em; }
     .status.err { color: var(--danger); }
     .status.ok { color: var(--brand-dark); }
     .hidden { display: none !important; }
-    .login-wrap { max-width: 420px; }
+    .login-wrap { max-width: 420px; margin: 0 auto; }
 
     .toolbar {
       display: flex;
@@ -165,7 +175,8 @@
       color: #fff;
       border-color: var(--brand);
     }
-    .count { font-size: 0.85rem; color: var(--muted); margin: 0 0 10px; text-align: left; }
+    .count { font-size: 0.85rem; color: var(--muted); margin: 0 0 10px; text-align: center; }
+    .tabs { justify-content: center; }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 680px; }
     th, td {
@@ -204,6 +215,7 @@
   <main class="sheet">
     <p class="brand">Registration</p>
     <p class="sub" id="pageSub">Admin login</p>
+    <p class="admin-id" id="adminIdLabel">Admin: vishnu.xerago@gmail.com</p>
 
     <section id="loginCard" class="login-wrap">
       <div id="panel-login" class="panel active">
@@ -277,12 +289,16 @@
 
   <script>
     var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwhQGf0CVmKO46t-LMClOXAcBy1ZOcJEfJSJz9SgaIQ-RNUIEPw4-L_xB3KJNW88s7oog/exec";
+    var ADMIN_EMAIL = "vishnu.xerago@gmail.com";
   </script>
   <script>
     (function () {
       var TOKEN_KEY = "nfc_admin_token";
       var DOWNLOAD_KEY = "nfc_admin_last_export_at";
       var DOWNLOAD_COOLDOWN_MS = 2 * 60 * 1000;
+
+      document.getElementById("adminIdLabel").textContent = "Admin: " + ADMIN_EMAIL;
+      document.getElementById("forgotEmail").value = ADMIN_EMAIL;
 
       var loginCard = document.getElementById("loginCard");
       var dash = document.getElementById("dash");
