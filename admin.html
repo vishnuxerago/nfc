@@ -364,7 +364,7 @@
         });
       }
 
-      function dash(v) {
+      function orDash(v) {
         var s = String(v == null ? "" : v).trim();
         return s ? s : "-";
       }
@@ -400,7 +400,7 @@
         }
         if (row.status === "awaiting_otp") return "<span class='badge warn'>Not verified</span>";
         if (row.status === "expired") return "<span class='badge bad'>Expired</span>";
-        return "<span class='badge bad'>" + escapeHtml(dash(row.status)) + "</span>";
+        return "<span class='badge bad'>" + escapeHtml(orDash(row.status)) + "</span>";
       }
 
       function renderTable(rows) {
@@ -415,9 +415,9 @@
           "<th>Name</th><th>Number</th><th>Email</th><th>Verified</th>" +
           "</tr></thead><tbody>" +
           lastRows.map(function (row) {
-            return "<tr><td>" + escapeHtml(dash(row.name)) + "</td><td>" +
-              escapeHtml(dash(row.mobile)) + "</td><td>" +
-              escapeHtml(dash(row.email)) + "</td><td>" + verifiedCell(row) + "</td></tr>";
+            return "<tr><td>" + escapeHtml(orDash(row.name)) + "</td><td>" +
+              escapeHtml(orDash(row.mobile)) + "</td><td>" +
+              escapeHtml(orDash(row.email)) + "</td><td>" + verifiedCell(row) + "</td></tr>";
           }).join("") +
           "</tbody></table></div>";
       }
@@ -467,10 +467,10 @@
         var csv = "\uFEFFName,Number,Email,Verified,VerifiedAt\n";
         lastRows.forEach(function (row) {
           csv += [
-            csvCell(dash(row.name)),
-            csvCell(dash(row.mobile)),
-            csvCell(dash(row.email)),
-            csvCell(row.status === "verified" ? "yes" : (row.status === "awaiting_otp" ? "not verified" : dash(row.status))),
+            csvCell(orDash(row.name)),
+            csvCell(orDash(row.mobile)),
+            csvCell(orDash(row.email)),
+            csvCell(row.status === "verified" ? "yes" : (row.status === "awaiting_otp" ? "not verified" : orDash(row.status))),
             csvCell(row.verifiedAt ? formatTime(row.verifiedAt) : "-")
           ].join(",") + "\n";
         });
@@ -481,10 +481,10 @@
         var xml = '<?xml version="1.0" encoding="UTF-8"?>\n<registrations>\n';
         lastRows.forEach(function (row) {
           xml += "  <customer>\n";
-          xml += "    <name>" + escapeXml(dash(row.name)) + "</name>\n";
-          xml += "    <number>" + escapeXml(dash(row.mobile)) + "</number>\n";
-          xml += "    <email>" + escapeXml(dash(row.email)) + "</email>\n";
-          xml += "    <verified>" + escapeXml(row.status === "verified" ? "yes" : (row.status === "awaiting_otp" ? "not verified" : dash(row.status))) + "</verified>\n";
+          xml += "    <name>" + escapeXml(orDash(row.name)) + "</name>\n";
+          xml += "    <number>" + escapeXml(orDash(row.mobile)) + "</number>\n";
+          xml += "    <email>" + escapeXml(orDash(row.email)) + "</email>\n";
+          xml += "    <verified>" + escapeXml(row.status === "verified" ? "yes" : (row.status === "awaiting_otp" ? "not verified" : orDash(row.status))) + "</verified>\n";
           xml += "    <verifiedAt>" + escapeXml(row.verifiedAt ? formatTime(row.verifiedAt) : "-") + "</verifiedAt>\n";
           xml += "  </customer>\n";
         });
